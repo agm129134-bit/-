@@ -12,6 +12,12 @@ public class SandcastleMinigame : MonoBehaviour
     [Header("階段圖片設定")]
     public Image puddingDisplayUI;        
     
+    [Header("新功能：大魚警告設定")]
+    public Image whiteFrameUI;         // 白框的 UI 圖片 (也就是你的背景圖)
+    public Transform playerTransform;  // 地圖上的玩家
+    public Transform bigFishTransform; // 地圖上的大魚 (敵人)
+    public float dangerDistance = 5f;  // 大魚靠近多近時框框會變紅？
+
     [System.Serializable]
     public struct SandcastleSet
     {
@@ -29,7 +35,6 @@ public class SandcastleMinigame : MonoBehaviour
     private int completedCastles = 0; 
 
     private bool isAnimating = false;
-    
     private RectTransform puddingRect;
     private Vector2 initialAnchoredPos; 
 
@@ -53,13 +58,29 @@ public class SandcastleMinigame : MonoBehaviour
         {
             HandleClick();
         }
+
+        // 【新功能】大魚靠近警告 (只有在玩小遊戲時才偵測)
+        if (isPlaying && bigFishTransform != null && playerTransform != null && whiteFrameUI != null)
+        {
+            // 計算玩家跟大魚的距離
+            float distance = Vector2.Distance(playerTransform.position, bigFishTransform.position);
+            
+            if (distance <= dangerDistance)
+            {
+                whiteFrameUI.color = Color.red; // 距離太近，框框變紅色！
+            }
+            else
+            {
+                whiteFrameUI.color = Color.white; // 安全距離，恢復原本的顏色
+            }
+        }
     }
 
     private void StartNewGame()
     {
         minigameUI.SetActive(true); 
         isPlaying = true;           
-        completedCastles = 0; 
+        completedCastles = 0; // 每次打開進度歸零
         isAnimating = false; 
         
         if (puddingDisplayUI != null && puddingRect != null)
@@ -71,8 +92,30 @@ public class SandcastleMinigame : MonoBehaviour
         {
             if(check != null) check.SetActive(false);
         }
+
+        if (whiteFrameUI != null)
+        {
+            whiteFrameUI.color = Color.white; // 打開時確保框框是正常的
+        }
         
         PickRandomCastle();
+    }
+
+    // 【新功能】專門給 X 按鈕呼叫的關閉函數
+    public void CloseAndResetMinigame()
+    {
+        if (isAnimating) return; // 動畫播放中先不准關
+
+        isPlaying = false;                  
+        minigameUI.SetActive(false);        
+        completedCastles = 0; // 進度無情歸零
+        
+        // 把亮起的勾勾全部熄滅
+        foreach(var check in checkmarks)
+        {
+            if(check != null) check.SetActive(false);
+        }
+        Debug.Log("未完成就關閉視窗，進度已重置！");
     }
     
     private void PickRandomCastle()
@@ -81,7 +124,6 @@ public class SandcastleMinigame : MonoBehaviour
         {
             clickCount = 0; 
             currentSetIndex = Random.Range(0, allCastleSets.Length); 
-            
             SetImageAlpha(0f); 
         }
     }
@@ -96,13 +138,11 @@ public class SandcastleMinigame : MonoBehaviour
         {
             SetImageAlpha(1f);
             puddingDisplayUI.sprite = currentSet.buildingStages[0];
-            // 【已刪除 SetNativeSize】
             clickCount++;
         }
         else if (clickCount < currentSet.buildingStages.Length)
         {
             puddingDisplayUI.sprite = currentSet.buildingStages[clickCount];
-            // 【已刪除 SetNativeSize】 
             clickCount++;
         }
         else 
@@ -116,7 +156,6 @@ public class SandcastleMinigame : MonoBehaviour
         isAnimating = true; 
 
         puddingDisplayUI.sprite = currentSet.finishedSprite;
-        // 【已刪除 SetNativeSize】
 
         float timer = 0f;
         float duration = 0.4f; 
