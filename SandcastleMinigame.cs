@@ -1,67 +1,197 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class SandcastleMinigame : MonoBehaviour
 {
-    [Header("把 UI 和沙堡拖曳到這裡")]
-    public GameObject minigameUI;        // 小遊戲的 UI 畫面 (Canvas)
-    public GameObject finishedSandcastle; // 完成後的布丁沙堡
+    [Header("UI 與物件設定")]
+    public GameObject minigameUI;         
+    public GameObject[] checkmarks;              
+    public SpriteRenderer mapSandcastleRenderer; 
 
-    private bool isPlayerInRange = false; // 玩家是否在沙坑內
-    private bool isPlaying = false;       // 是否正在玩小遊戲
-    private int clickCount = 0;           // 目前點擊次數
-
-    void Update()
+    [Header("階段圖片設定")]
+    public Image puddingDisplayUI;        
+    
+    [System.Serializable]
+    public struct SandcastleSet
     {
-        // 1. 如果玩家在範圍內，還沒開始玩，且按下鍵盤 E 鍵
-        if (isPlayerInRange && !isPlaying && Input.GetKeyDown(KeyCode.E))
-        {
-            minigameUI.SetActive(true); // 顯示小遊戲 UI
-            isPlaying = true;           // 進入遊玩狀態
-            clickCount = 0;             // 重置點擊次數
-            Debug.Log("開始堆沙堡！請在畫面上連點滑鼠左鍵！");
-        }
+        public string castleName;        
+        public Sprite[] buildingStages; 
+        public Sprite finishedSprite;  
+    }
 
-        // 2. 如果正在玩遊戲，偵測滑鼠左鍵點擊 (0 代表左鍵)
-        if (isPlaying && Input.GetMouseButtonDown(0))
-        {
-            clickCount++; // 點擊次數 +1
-            Debug.Log("堆沙子！目前進度：" + clickCount + " / 5");
+    public SandcastleSet[] allCastleSets; 
 
-            // 3. 如果點擊達 5 次，就完成遊戲
-            if (clickCount >= 5)
-            {
-                FinishMinigame();
-            }
+    private bool isPlayerInRange = false;
+    private bool isPlaying = false;
+    private int clickCount = 0;
+    private int currentSetIndex = 0; 
+    private int completedCastles = 0; 
+
+    private bool isAnimating = false;
+    
+    private RectTransform puddingRect;
+    private Vector2 initialAnchoredPos; 
+
+    void Start()
+    {
+        if (puddingDisplayUI != null)
+        {
+            puddingRect = puddingDisplayUI.GetComponent<RectTransform>();
+            initialAnchoredPos = puddingRect.anchoredPosition;
         }
     }
 
-    // 當玩家 (帶有 Player 標籤) 走進沙坑的感應區
+    void Update()
+    {
+        if (isPlayerInRange && !isPlaying && Input.GetKeyDown(KeyCode.F))
+        {
+            StartNewGame();
+        }
+
+        if (isPlaying && Input.GetMouseButtonDown(0))
+        {
+            HandleClick();
+        }
+    }
+
+    private void StartNewGame()
+    {
+        minigameUI.SetActive(true); 
+        isPlaying = true;           
+        completedCastles = 0; 
+        isAnimating = false; 
+        
+        if (puddingDisplayUI != null && puddingRect != null)
+        {
+            puddingRect.anchoredPosition = initialAnchoredPos; 
+        }
+
+        foreach(var check in checkmarks)
+        {
+            if(check != null) check.SetActive(false);
+        }
+        
+        PickRandomCastle();
+    }
+    
+    private void PickRandomCastle()
+    {
+        if (allCastleSets.Length > 0)
+        {
+            clickCount = 0; 
+            currentSetIndex = Random.Range(0, allCastleSets.Length); 
+            
+            SetImageAlpha(0f); 
+        }
+    }
+
+    private void HandleClick()
+    {
+        if (allCastleSets.Length == 0 || isAnimating) return;
+
+        var currentSet = allCastleSets[currentSetIndex];
+        
+        if (clickCount == 0)
+        {
+            SetImageAlpha(1f);
+            puddingDisplayUI.sprite = currentSet.buildingStages[0];
+            // 【已刪除 SetNativeSize】
+            clickCount++;
+        }
+        else if (clickCount < currentSet.buildingStages.Length)
+        {
+            puddingDisplayUI.sprite = currentSet.buildingStages[clickCount];
+            // 【已刪除 SetNativeSize】 
+            clickCount++;
+        }
+        else 
+        {
+            StartCoroutine(SlideOutAndNext(currentSet));
+        }
+    }
+
+    private IEnumerator SlideOutAndNext(SandcastleSet currentSet)
+    {
+        isAnimating = true; 
+
+        puddingDisplayUI.sprite = currentSet.finishedSprite;
+        // 【已刪除 SetNativeSize】
+
+        float timer = 0f;
+        float duration = 0.4f; 
+        
+        Vector2 startPos = puddingRect.anchoredPosition;
+        Vector2 endPos = startPos + new Vector2(1500f, 0f); 
+
+        while (timer < duration)
+        {
+            timer += Time.deltaTime;
+            float progress = timer / duration;
+            puddingRect.anchoredPosition = Vector2.Lerp(startPos, endPos, progress);
+            yield return null; 
+        }
+
+        SetImageAlpha(0f); 
+
+        if (completedCastles < checkmarks.Length)
+        {
+            checkmarks[completedCastles].SetActive(true);
+        }
+        
+        completedCastles++; 
+        
+        if (mapSandcastleRenderer != null)
+        {
+            mapSandcastleRenderer.gameObject.SetActive(true); 
+            mapSandcastleRenderer.sprite = currentSet.finishedSprite; 
+        }
+
+        puddingRect.anchoredPosition = initialAnchoredPos;
+
+        if (completedCastles >= 5)
+        {
+            FinishMinigame(); 
+        }
+        else
+        {
+            PickRandomCastle();
+        }
+
+        isAnimating = false; 
+    }
+
+    private void SetImageAlpha(float alphaValue)
+    {
+        if (puddingDisplayUI != null)
+        {
+            Color curColor = puddingDisplayUI.color; 
+            curColor.a = alphaValue;                
+            puddingDisplayUI.color = curColor;      
+        }
+    }
+
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("Player"))
         {
             isPlayerInRange = true;
-            Debug.Log("進入沙坑，按 E 鍵開始堆沙堡");
         }
     }
 
-    // 當玩家離開沙坑的感應區
     private void OnTriggerExit2D(Collider2D other)
     {
         if (other.CompareTag("Player"))
         {
             isPlayerInRange = false;
             isPlaying = false;
-            minigameUI.SetActive(false); // 離開時自動隱藏 UI
+            minigameUI.SetActive(false); 
         }
     }
 
-    // 完成小遊戲的處理
     private void FinishMinigame()
     {
-        isPlaying = false;                  // 結束遊玩狀態
-        minigameUI.SetActive(false);        // 隱藏小遊戲 UI
-        finishedSandcastle.SetActive(true); // 顯示布丁沙堡！
-        Debug.Log("沙堡完成啦！");
+        isPlaying = false;                  
+        minigameUI.SetActive(false);        
     }
 }
