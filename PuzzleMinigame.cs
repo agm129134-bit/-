@@ -24,24 +24,15 @@ public class PuzzleMinigame : MonoBehaviour
     public PuzzlePiece[] allPieces;   
     private int lockedPiecesCount = 0;
 
+    // 【全新魔法】直接設定一個絕對安全的隨機生成範圍！
+    [Header("安全生成範圍設定 (不超出邊界)")]
+    [Tooltip("X 軸範圍 (左邊界, 右邊界)")]
+    public Vector2 spawnRangeX = new Vector2(-250f, 250f); 
+    [Tooltip("Y 軸範圍 (下邊界, 上邊界)")]
+    public Vector2 spawnRangeY = new Vector2(-350f, -200f);
+
     private bool isPlayerInRange = false;
     private bool isPlaying = false;
-
-    // 【新增魔法】記住所有拼圖最初的底座位置
-    private Vector2[] initialPositions;
-
-    void Start()
-    {
-        // 遊戲一啟動，大總管就把你排好的 6 個漂亮位子存進名單裡
-        initialPositions = new Vector2[allPieces.Length];
-        for (int i = 0; i < allPieces.Length; i++)
-        {
-            if (allPieces[i] != null)
-            {
-                initialPositions[i] = allPieces[i].GetComponent<RectTransform>().anchoredPosition;
-            }
-        }
-    }
 
     void Update()
     {
@@ -65,7 +56,6 @@ public class PuzzleMinigame : MonoBehaviour
 
         if (whiteFrameUI != null) whiteFrameUI.color = Color.white;
 
-        // 【修改】改成呼叫洗牌重置魔法
         ShuffleAndResetPieces(); 
     }
 
@@ -75,36 +65,26 @@ public class PuzzleMinigame : MonoBehaviour
         minigameUI.SetActive(false);
         lockedPiecesCount = 0;
 
-        // 關閉時也順便洗牌歸位
         ShuffleAndResetPieces(); 
     }
 
     // ==========================================
-    // 🎲 核心洗牌魔法區 (大風吹！)
+    // 🎲 核心洗牌魔法區 (全新：範圍內隨機撒落)
     // ==========================================
     private void ShuffleAndResetPieces()
     {
-        if (initialPositions == null || initialPositions.Length == 0) return;
-
-        // 1. 複製一份位子名單準備洗牌
-        Vector2[] shuffledPositions = (Vector2[])initialPositions.Clone();
-
-        // 2. 像洗撲克牌一樣，隨機交換位子
-        for (int i = 0; i < shuffledPositions.Length; i++)
-        {
-            int randomIndex = Random.Range(0, shuffledPositions.Length);
-            // 讓目前的位子跟隨機抽到的位子互換
-            Vector2 temp = shuffledPositions[i];
-            shuffledPositions[i] = shuffledPositions[randomIndex];
-            shuffledPositions[randomIndex] = temp;
-        }
-
-        // 3. 把洗好的新位子發給每一塊拼圖！
         for (int i = 0; i < allPieces.Length; i++)
         {
             if (allPieces[i] != null)
             {
-                allPieces[i].ResetPiece(shuffledPositions[i]);
+                // 在你設定的安全範圍內，隨機抽一個 X 和 Y 座標
+                float randomX = Random.Range(spawnRangeX.x, spawnRangeX.y);
+                float randomY = Random.Range(spawnRangeY.x, spawnRangeY.y);
+                
+                Vector2 newRandomPos = new Vector2(randomX, randomY);
+                
+                // 把這個新座標發給拼圖小弟
+                allPieces[i].ResetPiece(newRandomPos);
             }
         }
     }
