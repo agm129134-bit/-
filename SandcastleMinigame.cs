@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems; // 【新加入】負責偵測滑鼠有沒有點到 UI
 
 public class SandcastleMinigame : MonoBehaviour
 {
@@ -12,11 +13,17 @@ public class SandcastleMinigame : MonoBehaviour
     [Header("階段圖片設定")]
     public Image puddingDisplayUI;        
     
-    [Header("新功能：大魚警告設定")]
-    public Image whiteFrameUI;         // 白框的 UI 圖片 (也就是你的背景圖)
-    public Transform playerTransform;  // 地圖上的玩家
-    public Transform bigFishTransform; // 地圖上的大魚 (敵人)
-    public float dangerDistance = 5f;  // 大魚靠近多近時框框會變紅？
+    [Header("大魚警告設定")]
+    public Image whiteFrameUI;         
+    public Transform playerTransform;  
+    public Transform bigFishTransform; 
+    public float dangerDistance = 5f;  
+
+    [Header("音效設定 (Audio)")]
+    public AudioSource audioSource;    
+    public AudioClip clickSound;       
+    public AudioClip castleDoneSound;  
+    public AudioClip gameClearSound;   
 
     [System.Serializable]
     public struct SandcastleSet
@@ -56,22 +63,26 @@ public class SandcastleMinigame : MonoBehaviour
 
         if (isPlaying && Input.GetMouseButtonDown(0))
         {
+            // 【核心修正】如果滑鼠目前指著可互動的 UI (例如叉叉按鈕)
+            if (EventSystem.current.IsPointerOverGameObject())
+            {
+                return; // 直接跳出，絕對不執行下面的堆沙堡動作！
+            }
+
             HandleClick();
         }
 
-        // 【新功能】大魚靠近警告 (只有在玩小遊戲時才偵測)
         if (isPlaying && bigFishTransform != null && playerTransform != null && whiteFrameUI != null)
         {
-            // 計算玩家跟大魚的距離
             float distance = Vector2.Distance(playerTransform.position, bigFishTransform.position);
             
             if (distance <= dangerDistance)
             {
-                whiteFrameUI.color = Color.red; // 距離太近，框框變紅色！
+                whiteFrameUI.color = Color.red; 
             }
             else
             {
-                whiteFrameUI.color = Color.white; // 安全距離，恢復原本的顏色
+                whiteFrameUI.color = Color.white; 
             }
         }
     }
@@ -80,7 +91,7 @@ public class SandcastleMinigame : MonoBehaviour
     {
         minigameUI.SetActive(true); 
         isPlaying = true;           
-        completedCastles = 0; // 每次打開進度歸零
+        completedCastles = 0; 
         isAnimating = false; 
         
         if (puddingDisplayUI != null && puddingRect != null)
@@ -95,27 +106,24 @@ public class SandcastleMinigame : MonoBehaviour
 
         if (whiteFrameUI != null)
         {
-            whiteFrameUI.color = Color.white; // 打開時確保框框是正常的
+            whiteFrameUI.color = Color.white; 
         }
         
         PickRandomCastle();
     }
 
-    // 【新功能】專門給 X 按鈕呼叫的關閉函數
     public void CloseAndResetMinigame()
     {
-        if (isAnimating) return; // 動畫播放中先不准關
+        if (isAnimating) return; 
 
         isPlaying = false;                  
         minigameUI.SetActive(false);        
-        completedCastles = 0; // 進度無情歸零
+        completedCastles = 0; 
         
-        // 把亮起的勾勾全部熄滅
         foreach(var check in checkmarks)
         {
             if(check != null) check.SetActive(false);
         }
-        Debug.Log("未完成就關閉視窗，進度已重置！");
     }
     
     private void PickRandomCastle()
@@ -134,6 +142,8 @@ public class SandcastleMinigame : MonoBehaviour
 
         var currentSet = allCastleSets[currentSetIndex];
         
+        PlaySound(clickSound);
+
         if (clickCount == 0)
         {
             SetImageAlpha(1f);
@@ -154,6 +164,8 @@ public class SandcastleMinigame : MonoBehaviour
     private IEnumerator SlideOutAndNext(SandcastleSet currentSet)
     {
         isAnimating = true; 
+        
+        PlaySound(castleDoneSound);
 
         puddingDisplayUI.sprite = currentSet.finishedSprite;
 
@@ -200,6 +212,23 @@ public class SandcastleMinigame : MonoBehaviour
         isAnimating = false; 
     }
 
+    private void FinishMinigame()
+    {
+        isPlaying = false;                  
+        minigameUI.SetActive(false);  
+        
+        PlaySound(gameClearSound);
+    }
+
+    private void PlaySound(AudioClip clip)
+    {
+        if (audioSource != null && clip != null)
+        {
+            audioSource.pitch = Random.Range(0.8f, 1.2f); 
+            audioSource.PlayOneShot(clip); 
+        }
+    }
+
     private void SetImageAlpha(float alphaValue)
     {
         if (puddingDisplayUI != null)
@@ -226,11 +255,5 @@ public class SandcastleMinigame : MonoBehaviour
             isPlaying = false;
             minigameUI.SetActive(false); 
         }
-    }
-
-    private void FinishMinigame()
-    {
-        isPlaying = false;                  
-        minigameUI.SetActive(false);        
     }
 }
