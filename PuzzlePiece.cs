@@ -24,7 +24,7 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     {
         if (isLocked) return;
 
-        manager.PlayClickSound(); 
+        //manager.PlayClickSound(); 
         canvasGroup.blocksRaycasts = false; 
         canvasGroup.alpha = 0.8f;           
         transform.SetAsLastSibling();       

@@ -16,15 +16,14 @@ public class PuzzleMinigame : MonoBehaviour
 
     [Header("音效設定")]
     public AudioSource audioSource;
-    public AudioClip clickSound;      
-    public AudioClip pieceLockSound;  
-    public AudioClip gameClearSound;  
+    // 移除了 clickSound 變數，因為用不到了
+    public AudioClip pieceLockSound;  // 拼圖卡入正確位置的音效
+    public AudioClip gameClearSound;  // 遊戲通關的音效
 
     [Header("拼圖進度追蹤")]
     public PuzzlePiece[] allPieces;   
     private int lockedPiecesCount = 0;
 
-    // 【全新魔法】直接設定一個絕對安全的隨機生成範圍！
     [Header("安全生成範圍設定 (不超出邊界)")]
     [Tooltip("X 軸範圍 (左邊界, 右邊界)")]
     public Vector2 spawnRangeX = new Vector2(-250f, 250f); 
@@ -36,11 +35,36 @@ public class PuzzleMinigame : MonoBehaviour
 
     void Update()
     {
+        // 1. 按 F 鍵準備開啟遊戲
         if (isPlayerInRange && !isPlaying && Input.GetKeyDown(KeyCode.F))
         {
-            StartNewGame();
+            bool amIClosest = true;
+            
+            float myDistance = Vector2.Distance(playerTransform.position, transform.position);
+            
+            Collider2D[] nearbyObjects = Physics2D.OverlapCircleAll(playerTransform.position, 2f);
+            
+            foreach (Collider2D obj in nearbyObjects)
+            {
+                if (obj.isTrigger && obj.gameObject != this.gameObject)
+                {
+                    float otherDistance = Vector2.Distance(playerTransform.position, obj.transform.position);
+                    
+                    if (otherDistance < myDistance)
+                    {
+                        amIClosest = false;
+                        break;
+                    }
+                }
+            }
+
+            if (amIClosest)
+            {
+                StartNewGame();
+            }
         }
 
+        // 2. 大魚紅框警告邏輯
         if (isPlaying && bigFishTransform != null && playerTransform != null && whiteFrameUI != null)
         {
             float distance = Vector2.Distance(playerTransform.position, bigFishTransform.position);
@@ -68,31 +92,28 @@ public class PuzzleMinigame : MonoBehaviour
         ShuffleAndResetPieces(); 
     }
 
-    // ==========================================
-    // 🎲 核心洗牌魔法區 (全新：範圍內隨機撒落)
-    // ==========================================
     private void ShuffleAndResetPieces()
     {
         for (int i = 0; i < allPieces.Length; i++)
         {
             if (allPieces[i] != null)
             {
-                // 在你設定的安全範圍內，隨機抽一個 X 和 Y 座標
                 float randomX = Random.Range(spawnRangeX.x, spawnRangeX.y);
                 float randomY = Random.Range(spawnRangeY.x, spawnRangeY.y);
                 
                 Vector2 newRandomPos = new Vector2(randomX, randomY);
                 
-                // 把這個新座標發給拼圖小弟
                 allPieces[i].ResetPiece(newRandomPos);
             }
         }
     }
-    // ==========================================
 
+    // ==========================================
+    // 🎵 音效觸發區：只有拼圖卡上去時才會呼叫這裡
+    // ==========================================
     public void PieceLocked()
     {
-        PlaySound(pieceLockSound);
+        PlaySound(pieceLockSound); // 播放卡上去的音效
         lockedPiecesCount++;
 
         if (lockedPiecesCount >= allPieces.Length)
@@ -114,10 +135,7 @@ public class PuzzleMinigame : MonoBehaviour
         minigameUI.SetActive(false);
     }
 
-    public void PlayClickSound()
-    {
-        PlaySound(clickSound);
-    }
+    // 將多餘的 PlayClickSound() 刪除
 
     private void PlaySound(AudioClip clip)
     {

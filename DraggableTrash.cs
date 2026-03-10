@@ -20,7 +20,7 @@ public class DraggableTrash : MonoBehaviour, IBeginDragHandler, IDragHandler, IE
         startPos = rectTransform.anchoredPosition; // 記住拖曳前的位置
         canvasGroup.blocksRaycasts = false;
         canvasGroup.alpha = 0.8f;
-        manager.PlayClickSound();
+        //manager.PlayClickSound();
     }
 
     public void OnDrag(PointerEventData eventData)

@@ -46,9 +46,9 @@ public class TrashMinigame : MonoBehaviour
 
     [Header("音效設定")]
     public AudioSource audioSource;
-    public AudioClip clickSound;     
-    public AudioClip correctSound;   
-    public AudioClip wrongSound;     
+    // 移除了 clickSound 變數，因為用不到了
+    public AudioClip correctSound;   // 丟進正確垃圾桶的音效
+    public AudioClip wrongSound;     // 丟進錯誤垃圾桶的音效
     public AudioClip gameClearSound; 
 
     private bool isPlayerInRange = false;
@@ -91,7 +91,6 @@ public class TrashMinigame : MonoBehaviour
 
     private void StartNewGame()
     {
-        // 防呆：如果題庫是空的就不要跑，免得當機
         if (allTrash == null || allTrash.Length == 0) return;
 
         minigameUI.SetActive(true);
@@ -105,16 +104,12 @@ public class TrashMinigame : MonoBehaviour
 
         if (whiteFrameUI != null) whiteFrameUI.color = Color.white;
 
-        // ==========================================
-        // 【全新抽考魔法】從題庫中隨機抽籤，製作一張全新的考卷！
         currentSessionTrash = new TrashData[requiredTrashCount];
         for (int i = 0; i < requiredTrashCount; i++)
         {
             int randomIndex = Random.Range(0, allTrash.Length);
-            // 把抽到的垃圾放進本局考卷裡
             currentSessionTrash[i] = allTrash[randomIndex]; 
         }
-        // ==========================================
 
         LoadTrash(); 
     }
@@ -126,7 +121,7 @@ public class TrashMinigame : MonoBehaviour
         currentTrashIndex = 0;
     }
 
-private void LoadTrash()
+    private void LoadTrash()
     {
         if (currentTrashIndex < requiredTrashCount)
         {
@@ -139,7 +134,6 @@ private void LoadTrash()
                 Sprite nextSp = currentSessionTrash[currentTrashIndex + 1].nextImage;
                 if (nextSp == null) nextSp = currentSessionTrash[currentTrashIndex + 1].sprite;
 
-                // 【空包彈警報器】如果雙重保險都找不到圖片，直接在控制台亮紅字大叫！
                 if (nextSp == null)
                 {
                     Debug.LogError("🚨 抓到空包彈了！下一個要出現的【" + currentSessionTrash[currentTrashIndex + 1].category + "】類垃圾完全沒有放圖片！快去檢查清單！");
@@ -168,7 +162,6 @@ private void LoadTrash()
 
     public void CheckDrop(DraggableTrash trashObj, Vector2 dropPos, Vector2 startPos)
     {
-        // 讀取本局考卷的答案
         TrashCategory requiredCategory = currentSessionTrash[currentTrashIndex].category;
         bool isCorrect = false;
         bool isDroppedInAnyBin = false;
@@ -194,19 +187,21 @@ private void LoadTrash()
             if (requiredCategory == TrashCategory.Paper) isCorrect = true;
         }
 
+        // 🎵 音效觸發區
         if (isCorrect)
         {
-            PlaySound(correctSound);
+            PlaySound(correctSound); // 答對音效
             currentTrashIndex++; 
             LoadTrash();         
         }
         else if (isDroppedInAnyBin)
         {
-            PlaySound(wrongSound); 
+            PlaySound(wrongSound);   // 答錯音效
             trashObj.ResetPosition(startPos); 
         }
         else
         {
+            // 如果丟在外面（沒丟進垃圾桶），就不發出聲音，直接彈回原位
             trashObj.ResetPosition(startPos); 
         }
     }
@@ -226,10 +221,7 @@ private void LoadTrash()
         gameObject.SetActive(false); 
     }
 
-    public void PlayClickSound()
-    {
-        PlaySound(clickSound);
-    }
+    // 將多餘的 PlayClickSound() 刪除
 
     private void PlaySound(AudioClip clip)
     {
