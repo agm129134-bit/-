@@ -46,7 +46,6 @@ public class TrashMinigame : MonoBehaviour
 
     [Header("音效設定")]
     public AudioSource audioSource;
-    // 移除了 clickSound 變數，因為用不到了
     public AudioClip correctSound;   // 丟進正確垃圾桶的音效
     public AudioClip wrongSound;     // 丟進錯誤垃圾桶的音效
     public AudioClip gameClearSound; 
@@ -125,6 +124,7 @@ public class TrashMinigame : MonoBehaviour
     {
         if (currentTrashIndex < requiredTrashCount)
         {
+            // 單純換圖片就好，不要用程式碼強制改變它的大小
             currentTrashObj.GetComponent<Image>().sprite = currentSessionTrash[currentTrashIndex].sprite;
             currentTrashObj.ResetPosition(trashSpawnPosition); 
             currentTrashObj.gameObject.SetActive(true);
@@ -139,6 +139,7 @@ public class TrashMinigame : MonoBehaviour
                     Debug.LogError("🚨 抓到空包彈了！下一個要出現的【" + currentSessionTrash[currentTrashIndex + 1].category + "】類垃圾完全沒有放圖片！快去檢查清單！");
                 }
 
+                // 預告區也是單純換圖片就好
                 nextTrashPreview.sprite = nextSp;
                 
                 if (nextTrashPreview.transform.parent != null)
@@ -221,14 +222,28 @@ public class TrashMinigame : MonoBehaviour
         gameObject.SetActive(false); 
     }
 
-    // 將多餘的 PlayClickSound() 刪除
-
+    // 終極防錯播放器：完全不用在 Inspector 拉喇叭了！
     private void PlaySound(AudioClip clip)
     {
-        if (audioSource != null && clip != null)
+        if (clip != null)
         {
-            audioSource.pitch = Random.Range(0.9f, 1.1f);
-            audioSource.PlayOneShot(clip);
+            // 1. 每次需要聲音時，直接在場景裡召喚一個「隱形播音員」
+            GameObject soundPlayer = new GameObject("TempSoundPlayer");
+            AudioSource tempSource = soundPlayer.AddComponent<AudioSource>();
+
+            // 2. 把音效檔交給他，並設定隨機音高
+            tempSource.clip = clip;
+            tempSource.pitch = Random.Range(0.9f, 1.1f);
+            
+            // 3. ✨ 最重要的一步：強制設為 2D 音效 (0)，保證無論在哪裡都超級大聲清楚！
+            tempSource.spatialBlend = 0f; 
+            tempSource.volume = 1f;
+
+            // 4. 開始播放
+            tempSource.Play();
+
+            // 5. 播完之後，這個隱形播音員就會自動消失，完全不佔用效能
+            Destroy(soundPlayer, clip.length + 0.1f);
         }
     }
 
