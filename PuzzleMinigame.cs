@@ -4,6 +4,12 @@ using UnityEngine.UI;
 
 public class PuzzleMinigame : MonoBehaviour
 {
+    [Header("過關獎勵設定")]
+    [Tooltip("把過關要給的相片圖片拖進來")]
+    public Sprite rewardPhoto; 
+    private ItemBarManager itemManager;
+    private bool hasGivenReward = false; // 防止玩家重複刷道具
+
     [Header("UI 與物件設定")]
     public GameObject minigameUI;     
     public Canvas mainCanvas;         
@@ -16,7 +22,6 @@ public class PuzzleMinigame : MonoBehaviour
 
     [Header("音效設定")]
     public AudioSource audioSource;
-    // 移除了 clickSound 變數，因為用不到了
     public AudioClip pieceLockSound;  // 拼圖卡入正確位置的音效
     public AudioClip gameClearSound;  // 遊戲通關的音效
 
@@ -32,6 +37,14 @@ public class PuzzleMinigame : MonoBehaviour
 
     private bool isPlayerInRange = false;
     private bool isPlaying = false;
+
+    // ==========================================
+    // 【新增魔法 1】遊戲一開始，去尋找道具大總管報到！
+    // ==========================================
+    void Start()
+    {
+        itemManager = FindAnyObjectByType<ItemBarManager>();
+    }
 
     void Update()
     {
@@ -108,9 +121,7 @@ public class PuzzleMinigame : MonoBehaviour
         }
     }
 
-    // ==========================================
     // 🎵 音效觸發區：只有拼圖卡上去時才會呼叫這裡
-    // ==========================================
     public void PieceLocked()
     {
         PlaySound(pieceLockSound); // 播放卡上去的音效
@@ -126,6 +137,21 @@ public class PuzzleMinigame : MonoBehaviour
     {
         isPlaying = false;
         PlaySound(gameClearSound);
+
+        // ==========================================
+        // 【新增魔法 2】拼圖完成，發送過關獎勵！
+        // ==========================================
+        if (itemManager != null && !hasGivenReward && rewardPhoto != null)
+        {
+            bool isSuccess = itemManager.AddItem(rewardPhoto);
+            
+            if (isSuccess)
+            {
+                hasGivenReward = true; // 標記為已領取，避免重複發送
+                Debug.Log("拼圖完成！成功獲得相片道具！");
+            }
+        }
+
         StartCoroutine(CloseAfterDelay()); 
     }
 
@@ -134,8 +160,6 @@ public class PuzzleMinigame : MonoBehaviour
         yield return new WaitForSeconds(1.5f); 
         minigameUI.SetActive(false);
     }
-
-    // 將多餘的 PlayClickSound() 刪除
 
     private void PlaySound(AudioClip clip)
     {
