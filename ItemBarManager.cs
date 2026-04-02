@@ -9,37 +9,30 @@ public class ItemBarManager : MonoBehaviour
     public Image[] itemIcons; 
 
     // ----------------------------------------------------
+    // ⏳ 加時道具設定 (沙漏/瓶子)
+    // ----------------------------------------------------
     [Header("⏳ 加時道具設定 (沙漏/瓶子)")]
     public Sprite hourglassSprite; 
     public float addTimeSeconds = 30f; 
 
+    // 🌟 【超級新增魔法：加時飄字特效】
+    [Header("⏳ 加時飄字特效設定")]
+    [Tooltip("請把 Project 視窗裡做好的飄字預製體拖進來")]
+    public GameObject timePopupPrefab; 
+    
+    [Tooltip("請把畫面中央顯示『00 : 25』的那個 Text 物件拖進來 (作為飄字的參考點)")]
+    public RectTransform timeTextReferencePoint; 
     // ----------------------------------------------------
+
+    // 👟 加速道具設定 (紅鞋子)
     [Header("👟 加速道具設定 (紅鞋子)")]
     public Sprite shoeSprite; 
     public float speedBoostDuration = 5f;
     public float speedMultiplier = 1.5f;
     public GameObject playerObject; 
 
-    // ----------------------------------------------------
-    // 🌟 美人魚照片道具設定 (螢幕遮擋 + 凍結)
-    // ----------------------------------------------------
-    [Header("🧜‍♀️ 美人魚照片道具設定")]
-    [Tooltip("請把美人魚照片圖片拖進來，讓系統認識這個道具")]
-    public Sprite mermaidPhotoSprite;
-
-    [Tooltip("照片佔據畫面持續幾秒？ (定身秒數)")]
-    public float photoFreezeDuration = 5f;
-
-    [Tooltip("請把左側 Hierarchy 的 PhotoOverlayManager 拖進來 (負責顯示 UI 照片)")]
-    public PhotoOverlayManager photoOverlayManager;
-
-    [Tooltip("請把地圖上要被凍結的「紅魚物件」拖進來")]
-    public GameObject targetToFreeze; 
-    // ----------------------------------------------------
-
     private Sprite[] currentItems;
     private int currentSelectedIndex = 0; 
-    private Coroutine photoCoroutine; 
 
     void Start()
     {
@@ -83,14 +76,12 @@ public class ItemBarManager : MonoBehaviour
         {
             if (currentItems[i] == null)
             {
-                currentItems[i] = newItemSprite;      
-                itemIcons[i].sprite = newItemSprite;  
+                currentItems[i] = newItemSprite;      
+                itemIcons[i].sprite = newItemSprite;  
                 itemIcons[i].color = new Color(1, 1, 1, 1); 
-                Debug.Log($"成功獲得道具，放在第 {i + 1} 格！");
                 return true; 
             }
         }
-        Debug.Log("道具欄滿了！放不下啦！");
         return false; 
     }
 
@@ -102,10 +93,23 @@ public class ItemBarManager : MonoBehaviour
 
         if (itemToUse != null)
         {
+            // =========================
+            // 判定 1：【⏳ 使用時鐘道具】
+            // =========================
             if (hourglassSprite != null && itemToUse == hourglassSprite)
             {
-                if (GameTimer.Instance != null) GameTimer.Instance.AddGameTime(addTimeSeconds);
+                // 1. 執行原本的加時間邏輯
+                if (GameTimer.Instance != null)
+                {
+                    GameTimer.Instance.AddGameTime(addTimeSeconds);
+                    
+                    // 🌟 2. 【核心魔法】觸發加時飄字特效！
+                    TriggerTimePopupEffect(addTimeSeconds);
+                }
             }
+            // =========================
+            // 判定 2：【👟 使用加速道具】
+            // =========================
             else if (shoeSprite != null && itemToUse == shoeSprite)
             {
                 if (playerObject != null)
@@ -114,67 +118,47 @@ public class ItemBarManager : MonoBehaviour
                     if (pm != null) pm.ActivateSpeedBoost(speedMultiplier, speedBoostDuration);
                 }
             }
-            // 🌟 ==========================================
-            // 判定 3：【美人魚照片】
-            // 移除了限制，現在每一張照片都能觸發效果！
-            // 🌟 ==========================================
-            else if (mermaidPhotoSprite != null && itemToUse == mermaidPhotoSprite)
-            {
-                // 如果前一張照片的效果還在跑，就先停掉舊的碼表
-                if (photoCoroutine != null) StopCoroutine(photoCoroutine);
-                
-                // 重新啟動一次 5 秒的定身與遮蔽！
-                photoCoroutine = StartCoroutine(MermaidPhotoRoutine());
-            }
 
-            // 無論有沒有效果，用完道具都會清空該格子
             ClearSlot(slotIndex);
         }
     }
 
     // ==========================================
-    // 🌟 處理畫面遮擋與目標凍結的協程
+    // 🌟 處理加時飄字的核心函數
     // ==========================================
-    IEnumerator MermaidPhotoRoutine()
+    private void TriggerTimePopupEffect(float amount)
     {
-        FishMovement fm = null;
-
-        // 1. 凍結目標
-        if (targetToFreeze != null)
+        // 雙重保險：確認模具跟參考點都在
+        if (timePopupPrefab == null || timeTextReferencePoint == null)
         {
-            fm = targetToFreeze.GetComponent<FishMovement>();
-            if (fm != null)
-            {
-                fm.canMove = false;
-                Debug.Log("<color=red><b>🥶【目標凍結】魚停止移動！</b></color>");
-            }
+            Debug.LogWarning("🚨 [錯誤] ItemBarManager 忘記綁定飄字預製體或時間參考點了！特效不會顯示喔。");
+            return;
         }
 
-        // 2. 顯示 Canvas UI 照片
-        if (photoOverlayManager != null)
+        // 1. 計算生成位置：找到畫面上「00 : 25」的右下角
+        Vector2 referencePos = timeTextReferencePoint.anchoredPosition; // 取得 00:25 的位置
+        // 在右下角加一點點偏移量 (例如往右 100, 往下 50，你可以手動調這裡的數字直到順眼為止)
+        Vector2 spawnPosition = referencePos + new Vector2(100f, -50f); 
+
+        // 2. 「生出」飄字實體 (要生在 timeTextReferencePoint 的爸爸底下，通常是 Canvas，確保圖層順序正确)
+        GameObject popup = Instantiate(timePopupPrefab, timeTextReferencePoint.parent);
+        RectTransform popupRect = popup.GetComponent<RectTransform>();
+        
+        // 3. 設定飄字初始位置
+        if (popupRect != null)
         {
-            photoOverlayManager.ShowPhoto();
-            Debug.Log("<b>🖼️【照片遮擋】美人魚照片彈出，佔據畫面！</b>");
+            popupRect.anchoredPosition = spawnPosition;
         }
 
-        // 3. 等待 5 秒
-        yield return new WaitForSeconds(photoFreezeDuration);
-
-        // 4. 解凍目標
-        if (fm != null)
+        // 4. 【完美設定文字內容】將 "+10"、"+30" 寫入文字中
+        Text textComponent = popup.GetComponent<Text>();
+        if (textComponent != null)
         {
-            fm.canMove = true;
-            Debug.Log("<color=white><b>🔙【目標解凍】魚恢復自由！</b></color>");
+            // 使用 Mathf.Ceil 無條件進位顯示整數 (例如 30f -> "30")
+            textComponent.text = $"+{Mathf.Ceil(amount)}";
         }
-
-        // 5. 隱藏 Canvas UI 照片
-        if (photoOverlayManager != null)
-        {
-            photoOverlayManager.HidePhoto();
-            Debug.Log("<b>🔙【畫面恢復】照片移除！</b>");
-        }
-
-        photoCoroutine = null;
+        
+        Debug.Log($"<b>🖼️【加時飄字】顯示效果: {textComponent.text}</b>");
     }
 
     private void ClearSlot(int index)
