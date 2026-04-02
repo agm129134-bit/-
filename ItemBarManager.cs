@@ -15,22 +15,37 @@ public class ItemBarManager : MonoBehaviour
     public Sprite hourglassSprite; 
     public float addTimeSeconds = 30f; 
 
-    // 🌟 【超級新增魔法：加時飄字特效】
     [Header("⏳ 加時飄字特效設定")]
-    [Tooltip("請把 Project 視窗裡做好的飄字預製體拖進來")]
     public GameObject timePopupPrefab; 
-    
-    [Tooltip("請把畫面中央顯示『00 : 25』的那個 Text 物件拖進來 (作為飄字的參考點)")]
     public RectTransform timeTextReferencePoint; 
-    // ----------------------------------------------------
 
+    // ----------------------------------------------------
     // 👟 加速道具設定 (紅鞋子)
+    // ----------------------------------------------------
     [Header("👟 加速道具設定 (紅鞋子)")]
     public Sprite shoeSprite; 
     public float speedBoostDuration = 5f;
     public float speedMultiplier = 1.5f;
     public GameObject playerObject; 
 
+    // ----------------------------------------------------
+    // 📸 大魚照片道具設定 (視覺干擾 + 凍結)
+    // ----------------------------------------------------
+    public enum PhotoTarget { FishScreen, HumanScreen, BothScreens }
+
+    [Header("📸 照片道具設定 (大魚照片)")]
+    public Sprite fishPhotoSprite; 
+    public PhotoTarget targetScreen = PhotoTarget.FishScreen;
+    public float photoDuration = 3f;
+    public GameObject bigPhotoOnFishScreen;
+    public GameObject bigPhotoOnHumanScreen;
+
+    // 🌟 【超級新增】凍結目標設定
+    [Header("❄️ 附加效果：凍結不能動")]
+    [Tooltip("請把你想凍結的對象(大魚或人類)的『移動腳本』拖進來")]
+    public MonoBehaviour movementScriptToFreeze;
+
+    private Coroutine photoCoroutine; 
     private Sprite[] currentItems;
     private int currentSelectedIndex = 0; 
 
@@ -39,6 +54,9 @@ public class ItemBarManager : MonoBehaviour
         currentItems = new Sprite[itemIcons.Length];
         for (int i = 0; i < itemIcons.Length; i++) ClearSlot(i);
         SelectSlot(0);
+
+        if (bigPhotoOnFishScreen != null) bigPhotoOnFishScreen.SetActive(false);
+        if (bigPhotoOnHumanScreen != null) bigPhotoOnHumanScreen.SetActive(false);
     }
 
     void Update()
@@ -76,8 +94,8 @@ public class ItemBarManager : MonoBehaviour
         {
             if (currentItems[i] == null)
             {
-                currentItems[i] = newItemSprite;      
-                itemIcons[i].sprite = newItemSprite;  
+                currentItems[i] = newItemSprite;      
+                itemIcons[i].sprite = newItemSprite;  
                 itemIcons[i].color = new Color(1, 1, 1, 1); 
                 return true; 
             }
@@ -93,23 +111,14 @@ public class ItemBarManager : MonoBehaviour
 
         if (itemToUse != null)
         {
-            // =========================
-            // 判定 1：【⏳ 使用時鐘道具】
-            // =========================
             if (hourglassSprite != null && itemToUse == hourglassSprite)
             {
-                // 1. 執行原本的加時間邏輯
                 if (GameTimer.Instance != null)
                 {
                     GameTimer.Instance.AddGameTime(addTimeSeconds);
-                    
-                    // 🌟 2. 【核心魔法】觸發加時飄字特效！
                     TriggerTimePopupEffect(addTimeSeconds);
                 }
             }
-            // =========================
-            // 判定 2：【👟 使用加速道具】
-            // =========================
             else if (shoeSprite != null && itemToUse == shoeSprite)
             {
                 if (playerObject != null)
@@ -118,47 +127,66 @@ public class ItemBarManager : MonoBehaviour
                     if (pm != null) pm.ActivateSpeedBoost(speedMultiplier, speedBoostDuration);
                 }
             }
+            else if (fishPhotoSprite != null && itemToUse == fishPhotoSprite)
+            {
+                Debug.Log("📸 玩家使用了大魚照片！視覺干擾 + 凍結 發動！");
+                
+                if (photoCoroutine != null) StopCoroutine(photoCoroutine);
+                photoCoroutine = StartCoroutine(ShowBigPhotoRoutine());
+            }
 
             ClearSlot(slotIndex);
         }
     }
 
     // ==========================================
-    // 🌟 處理加時飄字的核心函數
+    // 🌟 控制大照片與凍結效果的協程
     // ==========================================
-    private void TriggerTimePopupEffect(float amount)
+    private IEnumerator ShowBigPhotoRoutine()
     {
-        // 雙重保險：確認模具跟參考點都在
-        if (timePopupPrefab == null || timeTextReferencePoint == null)
+        // 1. 顯示照片
+        if (targetScreen == PhotoTarget.FishScreen || targetScreen == PhotoTarget.BothScreens)
+            if (bigPhotoOnFishScreen != null) bigPhotoOnFishScreen.SetActive(true);
+
+        if (targetScreen == PhotoTarget.HumanScreen || targetScreen == PhotoTarget.BothScreens)
+            if (bigPhotoOnHumanScreen != null) bigPhotoOnHumanScreen.SetActive(true);
+
+        // ❄️ 2. 【核心魔法】凍結角色！直接關閉它的移動腳本
+        if (movementScriptToFreeze != null)
         {
-            Debug.LogWarning("🚨 [錯誤] ItemBarManager 忘記綁定飄字預製體或時間參考點了！特效不會顯示喔。");
-            return;
+            movementScriptToFreeze.enabled = false;
         }
 
-        // 1. 計算生成位置：找到畫面上「00 : 25」的右下角
-        Vector2 referencePos = timeTextReferencePoint.anchoredPosition; // 取得 00:25 的位置
-        // 在右下角加一點點偏移量 (例如往右 100, 往下 50，你可以手動調這裡的數字直到順眼為止)
+        // 3. 乖乖等照片停留的時間
+        yield return new WaitForSeconds(photoDuration);
+
+        // 4. 時間到，把照片藏起來
+        if (bigPhotoOnFishScreen != null) bigPhotoOnFishScreen.SetActive(false);
+        if (bigPhotoOnHumanScreen != null) bigPhotoOnHumanScreen.SetActive(false);
+        
+        // 🏃‍♂️ 5. 【核心魔法】解除凍結！重新打開它的移動腳本
+        if (movementScriptToFreeze != null)
+        {
+            movementScriptToFreeze.enabled = true;
+        }
+
+        photoCoroutine = null;
+    }
+
+    private void TriggerTimePopupEffect(float amount)
+    {
+        if (timePopupPrefab == null || timeTextReferencePoint == null) return;
+
+        Vector2 referencePos = timeTextReferencePoint.anchoredPosition; 
         Vector2 spawnPosition = referencePos + new Vector2(100f, -50f); 
 
-        // 2. 「生出」飄字實體 (要生在 timeTextReferencePoint 的爸爸底下，通常是 Canvas，確保圖層順序正确)
         GameObject popup = Instantiate(timePopupPrefab, timeTextReferencePoint.parent);
         RectTransform popupRect = popup.GetComponent<RectTransform>();
         
-        // 3. 設定飄字初始位置
-        if (popupRect != null)
-        {
-            popupRect.anchoredPosition = spawnPosition;
-        }
+        if (popupRect != null) popupRect.anchoredPosition = spawnPosition;
 
-        // 4. 【完美設定文字內容】將 "+10"、"+30" 寫入文字中
         Text textComponent = popup.GetComponent<Text>();
-        if (textComponent != null)
-        {
-            // 使用 Mathf.Ceil 無條件進位顯示整數 (例如 30f -> "30")
-            textComponent.text = $"+{Mathf.Ceil(amount)}";
-        }
-        
-        Debug.Log($"<b>🖼️【加時飄字】顯示效果: {textComponent.text}</b>");
+        if (textComponent != null) textComponent.text = $"+{Mathf.Ceil(amount)}";
     }
 
     private void ClearSlot(int index)
