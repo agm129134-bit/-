@@ -48,20 +48,27 @@ public class PuzzleMinigame : MonoBehaviour
 
     void Update()
     {
-        // 🌟 核心魔法：遠端偵測玩家與照片的距離
+        // ==========================================
+        // 🌟 核心魔法：防衝突的 F 鍵觸發系統
+        // ==========================================
         if (!isPlaying && Input.GetKeyDown(KeyCode.F))
         {
-            // 在場景中尋找生出來的那張照片
+            // 🛑 【第一道鎖：檢查紅綠燈】
+            // 如果這一幀（同一個瞬間）已經有地上的道具被撿起來了，我立刻退下當作沒事！
+            if (PickableItem.lastInteractFrame == Time.frameCount) return;
+
             GameObject spawnedPhoto = GameObject.Find(photoTriggerName);
             
             if (spawnedPhoto != null && playerTransform != null)
             {
-                // 計算玩家與照片的距離
                 float distance = Vector2.Distance(playerTransform.position, spawnedPhoto.transform.position);
                 
-                // 如果靠得夠近，就開啟小遊戲！
                 if (distance <= interactDistance)
                 {
+                    // 🌟 【第二道鎖：搶下紅綠燈】
+                    // 小遊戲確定要開啟了！馬上把「搶答燈」按亮，告訴同一瞬間的其他道具：「不准撿！」
+                    PickableItem.lastInteractFrame = Time.frameCount;
+
                     StartNewGame();
                 }
             }
@@ -145,7 +152,6 @@ public class PuzzleMinigame : MonoBehaviour
         yield return new WaitForSeconds(1.5f); 
         minigameUI.SetActive(false);
 
-        // 如果拿滿次數，就遠端摧毀地圖上的照片！
         if (currentRewardCount >= maxRewards)
         {
             GameObject spawnedPhoto = GameObject.Find(photoTriggerName);

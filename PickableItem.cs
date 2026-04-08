@@ -1,54 +1,92 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class PickableItem : MonoBehaviour
 {
     [Header("這個道具在道具欄要顯示的圖案")]
-    [Tooltip("把紅鞋子或相片的圖片拖進來")]
     public Sprite itemIconSprite; 
 
     private ItemBarManager itemManager;
-    private bool isPlayerInRange = false; // 記錄玩家是不是站在道具旁邊
+    private bool isPlayerInRange = false; 
+    private Transform playerTransform; 
+
+    public static List<PickableItem> nearbyItems = new List<PickableItem>();
+
+    // 🌟 【超級防護罩】記錄「上一次按下 F 鍵並成功觸發」是哪一個畫面幀
+    public static int lastInteractFrame = -1;
 
     void Start()
     {
-        // 遊戲一開始，自動去地圖上尋找「道具管理員」報到
         itemManager = FindAnyObjectByType<ItemBarManager>();
     }
 
     void Update()
     {
-        // 如果玩家在範圍內，而且按下了鍵盤的 F 鍵
         if (isPlayerInRange && Input.GetKeyDown(KeyCode.F))
         {
-            if (itemManager != null)
+            // 🛑 鎖頭防呆：如果同一個瞬間（同一幀），已經有其他人撿起東西或觸發機關了，我就乖乖閉嘴！
+            if (lastInteractFrame == Time.frameCount) return;
+
+            PickableItem closestItem = GetClosestItem();
+
+            if (closestItem == this)
             {
-                // 告訴總管：玩家撿起我了，請把我放進道具欄！
-                bool isSuccess = itemManager.AddItem(itemIconSprite);
-                
-                // 如果道具欄還沒滿（成功放進去了）
-                if (isSuccess)
+                // 🌟 核心魔法：我搶到 F 鍵了！馬上把這一幀「上鎖」，其他人不准動！
+                lastInteractFrame = Time.frameCount;
+
+                if (itemManager != null)
                 {
-                    Destroy(gameObject); // 摧毀地上的道具物件
+                    bool isSuccess = itemManager.AddItem(itemIconSprite);
+                    if (isSuccess)
+                    {
+                        nearbyItems.Remove(this); 
+                        Destroy(gameObject); 
+                    }
                 }
             }
         }
     }
 
-    // 當有東西走進道具的綠色碰撞框時
+    private PickableItem GetClosestItem()
+    {
+        PickableItem closest = null;
+        float minDistance = float.MaxValue;
+        
+        nearbyItems.RemoveAll(item => item == null);
+
+        foreach (PickableItem item in nearbyItems)
+        {
+            float distance = Vector2.Distance(playerTransform.position, item.transform.position);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                closest = item;
+            }
+        }
+        return closest;
+    }
+
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("Player"))
         {
-            isPlayerInRange = true; // 標記玩家已進入範圍
+            isPlayerInRange = true;
+            playerTransform = other.transform; 
+            if (!nearbyItems.Contains(this)) nearbyItems.Add(this);
         }
     }
 
-    // 當東西離開道具的綠色碰撞框時
     private void OnTriggerExit2D(Collider2D other)
     {
         if (other.CompareTag("Player"))
         {
-            isPlayerInRange = false; // 標記玩家已離開範圍
+            isPlayerInRange = false;
+            if (nearbyItems.Contains(this)) nearbyItems.Remove(this);
         }
+    }
+
+    private void OnDestroy()
+    {
+        if (nearbyItems.Contains(this)) nearbyItems.Remove(this);
     }
 }

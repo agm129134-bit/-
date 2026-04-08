@@ -60,6 +60,10 @@ public class SandcastleMinigame : MonoBehaviour
     {
         if (isPlayerInRange && !isPlaying && Input.GetKeyDown(KeyCode.F))
         {
+            // 🛑 【第一道鎖：檢查紅綠燈】
+            // 如果這一瞬間已經有地上的道具或其他小遊戲被撿起/觸發了，我立刻退下當作沒事！
+            if (PickableItem.lastInteractFrame == Time.frameCount) return;
+
             bool amIClosest = true;
             float myDistance = Vector2.Distance(playerTransform.position, transform.position);
             Collider2D[] nearbyObjects = Physics2D.OverlapCircleAll(playerTransform.position, 2f);
@@ -79,6 +83,10 @@ public class SandcastleMinigame : MonoBehaviour
 
             if (amIClosest)
             {
+                // 🌟 【第二道鎖：搶下紅綠燈】
+                // 確定我是離玩家最近的機關了！馬上把「搶答燈」按亮，告訴同一瞬間的其他道具：「不准跟我搶！」
+                PickableItem.lastInteractFrame = Time.frameCount;
+
                 StartNewGame();
                 Debug.Log("【除錯】按 F 鍵成功開啟遊戲！isPlaying 狀態切換為 true。");
             }

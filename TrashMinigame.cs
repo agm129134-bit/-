@@ -57,6 +57,10 @@ public class TrashMinigame : MonoBehaviour
     {
         if (isPlayerInRange && !isPlaying && Input.GetKeyDown(KeyCode.F))
         {
+            // 🛑 【第一道鎖：檢查紅綠燈】
+            // 如果這一瞬間已經有其他道具被撿起或小遊戲被開啟，我立刻退下！
+            if (PickableItem.lastInteractFrame == Time.frameCount) return;
+
             bool amIClosest = true;
             float myDistance = Vector2.Distance(playerTransform.position, transform.position);
             
@@ -77,6 +81,10 @@ public class TrashMinigame : MonoBehaviour
 
             if (amIClosest)
             {
+                // 🌟 【第二道鎖：搶下紅綠燈】
+                // 確定我是離玩家最近的垃圾堆了！馬上把燈按亮，不准其他腳本搶 F 鍵！
+                PickableItem.lastInteractFrame = Time.frameCount;
+
                 StartNewGame();
             }
         }
