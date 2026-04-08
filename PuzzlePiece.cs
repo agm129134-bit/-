@@ -13,6 +13,9 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     private CanvasGroup canvasGroup;
     private bool isLocked = false;
 
+    // 🌟 1. 【新增】用來記住大總管發給它的隨機初始位置
+    private Vector2 startPosition; 
+
     void Awake()
     {
         rectTransform = GetComponent<RectTransform>();
@@ -47,9 +50,16 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
 
         if (distance <= snapDistance)
         {
+            // 🎉 拼對了！
             rectTransform.anchoredPosition = targetSlot.anchoredPosition;
             isLocked = true; 
             manager.PieceLocked(); 
+        }
+        else
+        {
+            // ❌ 拼錯了！
+            // 🌟 2. 【新增】退回大總管剛剛發配的隨機出生點！
+            rectTransform.anchoredPosition = startPosition;
         }
     }
 
@@ -57,6 +67,10 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public void ResetPiece(Vector2 newStartPos)
     {
         rectTransform.anchoredPosition = newStartPos; 
+        
+        // 🌟 3. 【新增】乖乖把大總管給的新位置記在腦海裡，等一下拼錯才知道要退回哪裡！
+        startPosition = newStartPos; 
+        
         isLocked = false; 
         canvasGroup.blocksRaycasts = true;
         canvasGroup.alpha = 1f;
