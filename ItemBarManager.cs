@@ -40,6 +40,14 @@ public class ItemBarManager : MonoBehaviour
     public GameObject bigPhotoOnFishScreen;
     public GameObject bigPhotoOnHumanScreen;
 
+    // ==========================================
+    // 🌟 【新增】照片滑入動畫設定
+    // ==========================================
+    [Header("🎞️ 大魚照片滑入動畫設定")]
+    public float slideInDuration = 0.5f;                  // 動畫花費的時間 (預設 0.5 秒)
+    public Vector2 photoStartPos = new Vector2(0, -1200f); // 圖片一開始躲在哪裡 (Y 負值代表畫面下方)
+    public Vector2 photoEndPos = new Vector2(0, 0);       // 圖片最後停在哪裡 (畫面正中央)
+
     // 🌟 【超級新增】凍結目標設定
     [Header("❄️ 附加效果：凍結不能動")]
     [Tooltip("請把你想凍結的對象(大魚或人類)的『移動腳本』拖進來")]
@@ -140,16 +148,26 @@ public class ItemBarManager : MonoBehaviour
     }
 
     // ==========================================
-    // 🌟 控制大照片與凍結效果的協程
+    // 🌟 控制大照片滑入與凍結效果的協程 (已加入動畫)
     // ==========================================
     private IEnumerator ShowBigPhotoRoutine()
     {
-        // 1. 顯示照片
+        // 取得 UI 的 RectTransform，等一下要用來移動它們
+        RectTransform fishRect = bigPhotoOnFishScreen != null ? bigPhotoOnFishScreen.GetComponent<RectTransform>() : null;
+        RectTransform humanRect = bigPhotoOnHumanScreen != null ? bigPhotoOnHumanScreen.GetComponent<RectTransform>() : null;
+
+        // 1. 先把照片瞬間拉到「畫面下方」的起始位置，然後顯示出來
         if (targetScreen == PhotoTarget.FishScreen || targetScreen == PhotoTarget.BothScreens)
+        {
+            if (fishRect != null) fishRect.anchoredPosition = photoStartPos;
             if (bigPhotoOnFishScreen != null) bigPhotoOnFishScreen.SetActive(true);
+        }
 
         if (targetScreen == PhotoTarget.HumanScreen || targetScreen == PhotoTarget.BothScreens)
+        {
+            if (humanRect != null) humanRect.anchoredPosition = photoStartPos;
             if (bigPhotoOnHumanScreen != null) bigPhotoOnHumanScreen.SetActive(true);
+        }
 
         // ❄️ 2. 【核心魔法】凍結角色！直接關閉它的移動腳本
         if (movementScriptToFreeze != null)
@@ -157,14 +175,38 @@ public class ItemBarManager : MonoBehaviour
             movementScriptToFreeze.enabled = false;
         }
 
-        // 3. 乖乖等照片停留的時間
-        yield return new WaitForSeconds(photoDuration);
+        // 🚀 3. 【執行滑入動畫】
+        float timer = 0f;
+        while (timer < slideInDuration)
+        {
+            timer += Time.deltaTime;
+            float progress = timer / slideInDuration;
+            
+            // 使用 EaseOut 讓滑動看起來更有彈性 (先快後慢)
+            float smoothProgress = 1f - Mathf.Pow(1f - progress, 3f); 
 
-        // 4. 時間到，把照片藏起來
+            if (fishRect != null && bigPhotoOnFishScreen.activeSelf)
+                fishRect.anchoredPosition = Vector2.Lerp(photoStartPos, photoEndPos, smoothProgress);
+
+            if (humanRect != null && bigPhotoOnHumanScreen.activeSelf)
+                humanRect.anchoredPosition = Vector2.Lerp(photoStartPos, photoEndPos, smoothProgress);
+
+            yield return null;
+        }
+
+        // 確保精準停在中央
+        if (fishRect != null && bigPhotoOnFishScreen.activeSelf) fishRect.anchoredPosition = photoEndPos;
+        if (humanRect != null && bigPhotoOnHumanScreen.activeSelf) humanRect.anchoredPosition = photoEndPos;
+
+        // 4. 乖乖等照片停留的時間 (會自動扣掉動畫花費的時間，讓總凍結時間維持不變)
+        float waitTime = photoDuration - slideInDuration;
+        if (waitTime > 0) yield return new WaitForSeconds(waitTime);
+
+        // 5. 時間到，把照片藏起來
         if (bigPhotoOnFishScreen != null) bigPhotoOnFishScreen.SetActive(false);
         if (bigPhotoOnHumanScreen != null) bigPhotoOnHumanScreen.SetActive(false);
         
-        // 🏃‍♂️ 5. 【核心魔法】解除凍結！重新打開它的移動腳本
+        // 🏃‍♂️ 6. 【核心魔法】解除凍結！重新打開它的移動腳本
         if (movementScriptToFreeze != null)
         {
             movementScriptToFreeze.enabled = true;

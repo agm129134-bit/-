@@ -244,6 +244,14 @@ public class SandcastleMinigame : MonoBehaviour
         isPlaying = false;                  
         if (minigameUI != null) minigameUI.SetActive(false);  
         PlaySound(gameClearSound);
+
+        // ==========================================
+        // 🌟 【新增】通知大總管：這個堆沙堡任務完成了！
+        // ==========================================
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.CompleteOneTask();
+        }
     }
 
     private void PlaySound(AudioClip clip)

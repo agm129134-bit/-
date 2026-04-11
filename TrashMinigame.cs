@@ -215,14 +215,23 @@ public class TrashMinigame : MonoBehaviour
         }
     }
 
-    private void FinishMinigame()
+ private void FinishMinigame()
     {
         isPlaying = false;
         if (currentTrashObj != null) currentTrashObj.gameObject.SetActive(false);
         PlaySound(gameClearSound);
+
+        // ==========================================
+        // 🌟 【修改】改成回報「我分完一個垃圾袋了！」
+        // ==========================================
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnTrashBagSorted(); // <-- 換成呼叫這個！
+        }
+
         StartCoroutine(CloseAfterDelay());
     }
-
+    
     private IEnumerator CloseAfterDelay()
     {
         yield return new WaitForSeconds(0.3f);
