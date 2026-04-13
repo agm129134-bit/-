@@ -20,6 +20,12 @@ public class SummaryUIManager : MonoBehaviour
     [Header("🎮 遊戲進行中 UI (結算時會自動隱藏)")]
     public GameObject inGameTimerUI;      
 
+    // ==========================================
+    // 🌟 【新增】結算時要強制關閉的視窗清單
+    // ==========================================
+    [Header("🛑 結算時強制關閉的視窗 (把小遊戲介面拖進來)")]
+    public GameObject[] panelsToCloseOnSummary;
+
     [Header("🎬 階段一：5秒全螢幕提示")]
     public GameObject phase1_Panel;       
     public GameObject successBigImage;    
@@ -57,26 +63,20 @@ public class SummaryUIManager : MonoBehaviour
         if (newspaperPanel != null) newspaperPanel.anchoredPosition = newspaperStartPos;
     }
 
-    void Update()
+   void Update()
     {
         // 🛠️ 測試按鍵
         if (Input.GetKeyDown(KeyCode.Y)) 
         {
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.playerScores[0] = 40;
-                GameManager.Instance.playerScores[1] = 10;
-                GameManager.Instance.playerScores[2] = 25;
-            }
+            // 拔掉塞分數的作弊碼，現在按 Y 只會單純叫出「真實成績」的勝利畫面
             ShowSummary(true); 
         }
         if (Input.GetKeyDown(KeyCode.N)) 
         {
             if (GameManager.Instance != null)
             {
-                GameManager.Instance.remainingTrash = 20;
-                // 🛑 已經把強制設定 completedTasks = 3 的作弊程式碼刪除了！
-                // 現在它會真實反映你破關的數量！
+                // 這個也可以順便拔掉，讓它顯示真實剩下的垃圾數量
+                // GameManager.Instance.remainingTrash = 20; 
             }
             ShowSummary(false); 
         }
@@ -91,6 +91,17 @@ public class SummaryUIManager : MonoBehaviour
     private IEnumerator SummarySequence(bool isWin)
     {
         if (inGameTimerUI != null) inGameTimerUI.SetActive(false);
+
+        // ==========================================
+        // 🌟 【新增】迴圈把清單裡的小遊戲視窗全部關掉！
+        // ==========================================
+        if (panelsToCloseOnSummary != null)
+        {
+            foreach (GameObject panel in panelsToCloseOnSummary)
+            {
+                if (panel != null) panel.SetActive(false);
+            }
+        }
 
         PrepareData(isWin);
 

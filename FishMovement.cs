@@ -1,5 +1,5 @@
 using UnityEngine;
-using System.Collections; // 為了使用協程等待，一定要加這行！
+using System.Collections; 
 
 public class FishMovement : MonoBehaviour
 {
@@ -17,45 +17,42 @@ public class FishMovement : MonoBehaviour
 
     [Header("圖片設定 (選填)")]
     [Tooltip("如果你的魚原圖是『頭朝右邊』，請打勾；如果是『頭朝左邊』，請取消打勾")]
-    public bool isFacingRightOriginally = false; // 預設多數 2D 素材是朝左
+    public bool isFacingRightOriginally = false; 
     private SpriteRenderer spriteRenderer;
+
+    // ==========================================
+    // 🌟 【新增】攻擊設定
+    // ==========================================
+    [Header("攻擊設定")]
+    [Tooltip("咬人一次之後，要間隔幾秒才能再咬下一次？(防秒殺保護)")]
+    public float damageCooldown = 2f; 
+    private float lastDamageTime = -999f; // 記錄上次咬人的時間
 
     // 🌟 【核心魔法：凍結變數】
     [HideInInspector] 
     public bool canMove = true;
 
     // 內部運算變數
-    private Vector2 startPosition;  // 記錄魚一開始出生的位置 (作為活動中心點)
-    private Vector2 targetPosition; // 魚目前想去的地方
-    private bool isWaiting = false; // 記錄魚是不是正在休息
+    private Vector2 startPosition;  
+    private Vector2 targetPosition; 
+    private bool isWaiting = false; 
 
     void Start()
     {
-        // 抓取身上的 SpriteRenderer (用來翻轉圖片)
         spriteRenderer = GetComponent<SpriteRenderer>();
-        
-        // 記錄一開始的位置，這樣魚才不會越游越遠，游到畫面外
         startPosition = transform.position;
-        
-        // 遊戲一開始，先幫魚找一個隨機目標點
         PickNewTargetPosition();
     }
 
     void Update()
     {
-        // 🌟 核心判定：如果被定身 (canMove 為 false) 或者正在休息 (isWaiting 為 true)，就不移動
         if (!canMove || isWaiting) return;
 
-        // 1. 讓魚朝著「目標點」等速移動 (這行是 Unity 追蹤目標最標準的寫法)
         transform.position = Vector2.MoveTowards(transform.position, targetPosition, fishSpeed * Time.deltaTime);
-
-        // 2. 讓魚頭轉向移動的方向 (自動翻轉圖片)
         UpdateFacingDirection();
 
-        // 3. 檢查是不是已經游到目標點了 (距離小於 0.1 就算到達)
         if (Vector2.Distance(transform.position, targetPosition) < 0.1f)
         {
-            // 游到了！開始執行休息的協程
             StartCoroutine(WaitAndPickNewPosition());
         }
     }
@@ -63,24 +60,18 @@ public class FishMovement : MonoBehaviour
     // 隨機在地圖上找一個新座標
     private void PickNewTargetPosition()
     {
-        // 在起點的周圍 (wanderRadius 半徑內) 隨機找一個 X 和 Y 座標
         float randomX = Random.Range(-wanderRadius, wanderRadius);
         float randomY = Random.Range(-wanderRadius, wanderRadius);
-        
-        // 設定新的目標點 (中心點 + 偏移量)
         targetPosition = startPosition + new Vector2(randomX, randomY);
     }
 
     // 休息倒數的碼表
     IEnumerator WaitAndPickNewPosition()
     {
-        isWaiting = true; // 標記為正在休息，Update 裡的移動邏輯會暫停
-        
-        // 隨機決定要休息幾秒
+        isWaiting = true; 
         float waitTime = Random.Range(minWaitTime, maxWaitTime);
-        yield return new WaitForSeconds(waitTime); // 碼表開始計時，等待
+        yield return new WaitForSeconds(waitTime); 
         
-        // 休息結束，找下一個目標點，並恢復移動
         PickNewTargetPosition();
         isWaiting = false; 
     }
@@ -90,17 +81,50 @@ public class FishMovement : MonoBehaviour
     {
         if (spriteRenderer == null) return;
 
-        // 如果目標點在魚的右邊
         if (targetPosition.x > transform.position.x)
         {
-            // 如果原圖朝左，往右走就要翻轉 (true)
             spriteRenderer.flipX = !isFacingRightOriginally;
         }
-        // 如果目標點在魚的左邊
         else if (targetPosition.x < transform.position.x)
         {
-            // 往左走就恢復原狀
             spriteRenderer.flipX = isFacingRightOriginally;
+        }
+    }
+
+    // ==========================================
+    // 🌟 【新增】碰到玩家扣血邏輯
+    // ==========================================
+    
+    // 如果你的大魚碰撞體勾選了 "Is Trigger"，會觸發這個
+    private void OnTriggerEnter2D(Collider2D other) { TryDealDamage(other.gameObject); }
+    private void OnTriggerStay2D(Collider2D other) { TryDealDamage(other.gameObject); }
+
+    // 如果你的大魚碰撞體是實體的 (沒有勾選 Is Trigger)，會觸發這個
+    private void OnCollisionEnter2D(Collision2D collision) { TryDealDamage(collision.gameObject); }
+    private void OnCollisionStay2D(Collision2D collision) { TryDealDamage(collision.gameObject); }
+
+    // 統一處理扣血的函數
+    private void TryDealDamage(GameObject hitObject)
+    {
+        // 檢查碰到的東西是不是玩家
+        if (hitObject.CompareTag("Player"))
+        {
+            // 檢查冷卻時間到了沒
+            if (Time.time >= lastDamageTime + damageCooldown)
+            {
+                if (GameManager.Instance != null)
+                {
+                    // ⚠️ 注意：這裡預設扣 1P (ID:0) 的血。
+                    // 如果你們有雙人系統，可以從 hitObject 身上讀取玩家 ID 傳進去
+                    int playerId = 0; 
+                    GameManager.Instance.TakeDamage(playerId);
+                    
+                    // 更新最後一次咬人的時間，重新開始冷卻
+                    lastDamageTime = Time.time; 
+                    
+                    Debug.Log("🐟 大魚咬了玩家！扣一滴血！");
+                }
+            }
         }
     }
 }

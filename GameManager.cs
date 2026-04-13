@@ -6,7 +6,8 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     [Header("👥 玩家資料設定")]
-    public int playerCount = 4;       // 總玩家人數 (依據你之前的截圖，幫你預設改回 4 人)
+    [Tooltip("⚠️ 單人測試請務必改成 1！不然大魚咬死你之後，系統會以為還有其他玩家活著！")]
+    public int playerCount = 4;       // 總玩家人數 (單人測試時請在 Inspector 改成 1)
     public int maxLivesPerPlayer = 3; // 每個人有幾條命
     
     // 記帳本：公開這些陣列，讓之後的結算 UI 可以來讀取資料
@@ -14,8 +15,7 @@ public class GameManager : MonoBehaviour
     public int[] playerLives;         // 記錄 1P, 2P, 3P, 4P 剩餘的生命
 
     [Header("⏳ 遊戲進度與條件")]
-    public float gameTime = 300f;     // 遊戲時間 (例如 300 秒 = 5 分鐘)
-    public int totalTrashOnMap = 50;  // 勝利條件：總共需要撿多少垃圾
+    public int totalTrashOnMap = 20;  // 勝利條件：總共需要撿多少垃圾
     public int remainingTrash;        // 畫面上還剩下多少垃圾
 
     // ==========================================
@@ -26,7 +26,7 @@ public class GameManager : MonoBehaviour
     public int completedTasks = 0;   // 目前已經完成了幾個
 
     // ==========================================
-    // 🌟 【新增】垃圾分類專屬進度
+    // 🌟 垃圾分類專屬進度
     // ==========================================
     [Header("🗑️ 垃圾分類任務設定")]
     public int requiredTrashBags = 5; // 需要分完幾個垃圾袋才算完成大任務
@@ -55,24 +55,11 @@ public class GameManager : MonoBehaviour
         sortedTrashBags = 0; // 🌟 遊戲開始時，垃圾袋進度歸零
     }
 
-    void Update()
-    {
-        if (isGameOver) return;
-
-        // ⏳ 失敗條件 1：時間倒數
-        if (gameTime > 0)
-        {
-            gameTime -= Time.deltaTime;
-            if (gameTime <= 0)
-            {
-                gameTime = 0;
-                TriggerGameOver(false, "時間到了！清湖失敗...");
-            }
-        }
-    }
+    // 💡 已經把原本 Update 裡面的「隱形時鐘」刪除了！
+    // 現在時間全權交給你設定好的 GameTimer.cs 來管！
 
     // ==========================================
-    // 🌟 【新增】當分完「一個」垃圾袋時呼叫！
+    // 🌟 當分完「一個」垃圾袋時呼叫！
     // ==========================================
     public void OnTrashBagSorted()
     {
@@ -153,10 +140,13 @@ public class GameManager : MonoBehaviour
     }
 
     // ==========================================
-    // 🛑 遊戲結束判定總機
+    // 🛑 遊戲結束判定總機 (🌟 已經改成 public，讓 GameTimer 可以呼叫)
     // ==========================================
-    private void TriggerGameOver(bool isWin, string reason)
+    public void TriggerGameOver(bool isWin, string reason)
     {
+        // 防呆機制：如果已經 Game Over 了，就不要再重複執行 (避免時間到跟被咬死同時發生)
+        if (isGameOver) return;
+
         isGameOver = true;
         Debug.Log($"<color=orange>【遊戲結束】狀態：{(isWin ? "成功" : "失敗")} | 原因：{reason}</color>");
 
@@ -166,6 +156,10 @@ public class GameManager : MonoBehaviour
         if (SummaryUIManager.Instance != null)
         {
             SummaryUIManager.Instance.ShowSummary(isWin);
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ 找不到 SummaryUIManager！請確認它有在場景中開啟！");
         }
     }
 }

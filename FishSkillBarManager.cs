@@ -2,6 +2,8 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
+// 🌟 【新增】要求這個腳本所在的物件一定要有 AudioSource 元件，用來發出聲音
+[RequireComponent(typeof(AudioSource))]
 public class FishSkillBarManager : MonoBehaviour
 {
     [Header("UI 設定")]
@@ -52,9 +54,23 @@ public class FishSkillBarManager : MonoBehaviour
     public Transform firePoint;
     public bool reverseShootDirection = false;
     public float skill2Cooldown = 20f;
+
+    // ==========================================
+    // 🌟 【新增】技能 2 音效設定
+    // ==========================================
+    [Tooltip("請把大魚吐口水的音效拖進來")]
+    public AudioClip spitSound;
+    private AudioSource audioSource; // 這是用來播放聲音的喇叭
+
     private float skill2CurrentCD = 0f;
 
     private int currentSelectedIndex = 0;
+
+    // 🌟 【新增】在程式一開始先抓取身上的喇叭
+    void Awake()
+    {
+        audioSource = GetComponent<AudioSource>();
+    }
 
     void Start()
     {
@@ -181,6 +197,15 @@ public class FishSkillBarManager : MonoBehaviour
             if (sp != null) sp.SetDirection(shootDirection);
             
             skill2CurrentCD = skill2Cooldown;
+
+            // ==========================================
+            // 🌟 【新增】發射時播放吐口水音效！
+            // ==========================================
+            if (spitSound != null && audioSource != null)
+            {
+                // PlayOneShot 適合這種短暫的音效
+                audioSource.PlayOneShot(spitSound);
+            }
         }
     }
 }
