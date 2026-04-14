@@ -15,7 +15,7 @@ public class GameManager : MonoBehaviour
     public int[] playerLives;         // 記錄 1P, 2P, 3P, 4P 剩餘的生命
 
     // ==========================================
-    // 🏆 【全新進化】動態雙重勝利條件
+    // 🏆 動態雙重勝利條件
     // ==========================================
     [Header("🏆 勝利條件設定")]
     [Tooltip("過關總共需要撿到幾個垃圾？ (例如設定 60)")]
@@ -27,7 +27,7 @@ public class GameManager : MonoBehaviour
     public int currentCollectedTrash = 0; // 目前已經撿到的垃圾總數
     public int alivePlayerCount;          // 目前存活的玩家數量
 
-    // 💡 魔法屬性：會根據活著的人數自動算出目標！(例如活著 4 人 = 12，活著 3 人 = 9)
+    // 💡 魔法屬性：會根據活著的人數自動算出目標！
     public int CurrentTargetTasks 
     { 
         get { return alivePlayerCount * tasksPerPlayer; } 
@@ -41,9 +41,7 @@ public class GameManager : MonoBehaviour
     public int totalTasks = 12;      // UI顯示用的總數 (可留著給其他腳本參考)
     public int completedTasks = 0;   // 目前已經完成了幾個
 
-    [Header("🗑️ 垃圾分類任務設定")]
-    public int requiredTrashBags = 5; // 需要分完幾個垃圾袋才算完成大任務
-    public int sortedTrashBags = 0;   // 目前分完了幾個
+    // 🌟 【已刪除】原本的「垃圾分類任務設定 (requiredTrashBags 等)」已經不需要了！
 
     public bool isGameOver { get; private set; } = false;
 
@@ -65,24 +63,20 @@ public class GameManager : MonoBehaviour
         currentCollectedTrash = 0;
         remainingTrash = totalTrashOnMap;
         completedTasks = 0; 
-        sortedTrashBags = 0; 
     }
 
     // ==========================================
-    // 🌟 當分完「一個」垃圾袋時呼叫！
+    // 🌟 【修改】現在垃圾分類成功，直接算作「收集到一般垃圾」！
+    // 加入 playerId 參數 (預設為 0 代表 1P)，方便你把分數算給對應的玩家
     // ==========================================
-    public void OnTrashBagSorted()
+    public void OnTrashBagSorted(int playerId = 0)
     {
         if (isGameOver) return;
 
-        sortedTrashBags++;
-        Debug.Log($"垃圾袋進度：{sortedTrashBags} / {requiredTrashBags}");
-
-        if (sortedTrashBags >= requiredTrashBags)
-        {
-            // 🌟 【修改】依照要求，垃圾分類不算小遊戲任務！所以把 CompleteOneTask() 拔掉了！
-            Debug.Log("🎉 垃圾分類任務全部完成！(但不計入小遊戲破關任務數量)");
-        }
+        Debug.Log("🗑️ 透過分類小遊戲成功處理了垃圾！");
+        
+        // 直接呼叫 AddScore，把它當作一般垃圾加分！(預設加 1 個)
+        AddScore(playerId, 1); 
     }
 
     // ==========================================
@@ -95,36 +89,34 @@ public class GameManager : MonoBehaviour
         completedTasks++;
         Debug.Log($"任務完成打卡！目前任務進度：{completedTasks} / {CurrentTargetTasks}");
         
-        // 每完成一個小遊戲，檢查一次是不是贏了
         CheckWinCondition();
     }
 
     // ==========================================
-    // 🗑️ 玩家撿起垃圾時呼叫這個函數
+    // 🗑️ 玩家撿起垃圾(或分類成功)時呼叫這個函數
     // ==========================================
     public void AddScore(int playerId, int amount = 1)
     {
         if (isGameOver) return;
         if (playerId < 0 || playerId >= playerCount) return;
 
-        playerScores[playerId] += amount; // 幫該玩家加分
-        currentCollectedTrash += amount;  // 🌟 總垃圾收集量增加
+        playerScores[playerId] += amount; // 幫該玩家加分 (結算畫面「今日最佳」會用到)
+        currentCollectedTrash += amount;  // 總垃圾收集量增加
         remainingTrash -= amount;         // 地圖上的垃圾減少 (相容舊UI)
 
         Debug.Log($"撿到垃圾！目前垃圾進度：{currentCollectedTrash} / {targetTrashCount}");
 
-        // 每次撿到垃圾，檢查一次是不是贏了
         CheckWinCondition();
     }
 
     // ==========================================
-    // 🌟 【新增】中央大腦判斷勝利條件
+    // 🌟 中央大腦判斷勝利條件
     // ==========================================
     private void CheckWinCondition()
     {
         if (isGameOver) return;
 
-        // 雙重門檻：垃圾達標 且 任務達標 (任務目標是動態的)
+        // 雙重門檻：垃圾達標 且 任務達標
         if (currentCollectedTrash >= targetTrashCount && completedTasks >= CurrentTargetTasks)
         {
             TriggerGameOver(true, $"清湖成功！大豐收！\n垃圾: {currentCollectedTrash}/{targetTrashCount} | 任務: {completedTasks}/{CurrentTargetTasks}");
@@ -141,26 +133,22 @@ public class GameManager : MonoBehaviour
 
         if (playerLives[playerId] > 0)
         {
-            playerLives[playerId]--; // 扣該玩家一條命
+            playerLives[playerId]--; 
             Debug.Log($"玩家 {playerId + 1} 被咬了！剩下 {playerLives[playerId]} 條命。");
 
-            // 🌟 【新增】如果這條命扣下去剛好死掉 (歸零)
             if (playerLives[playerId] == 0)
             {
-                alivePlayerCount--; // 存活人數減 1
+                alivePlayerCount--; 
                 Debug.Log($"💀 玩家 {playerId + 1} 陣亡！目前剩餘存活人數：{alivePlayerCount}。目標任務數降為：{CurrentTargetTasks}");
             }
         }
 
-        // 💀 失敗條件：檢查是不是大家都沒命了？
         if (alivePlayerCount <= 0)
         {
             TriggerGameOver(false, "所有玩家都陣亡了！驚！大魚來襲！");
         }
         else
         {
-            // 💡 關鍵魔法：有人死掉會讓任務門檻「瞬間降低」(12 -> 9)。
-            // 說不定剩下的活人早就完成了 9 個任務，所以要馬上檢查一次是不是直接判定勝利！
             CheckWinCondition();
         }
     }
