@@ -7,6 +7,13 @@ public class SummaryUIManager : MonoBehaviour
 {
     public static SummaryUIManager Instance { get; private set; }
 
+    // ==========================================
+    // 🌟 【新增】開發測試開關
+    // ==========================================
+    [Header("🛠️ 開發測試設定")]
+    [Tooltip("打勾：開啟 Y 鍵(勝利)與 N 鍵(失敗)的測試功能 / 取消打勾：關閉測試按鍵")]
+    public bool enableTestKeys = true;
+
     [System.Serializable]
     public struct PlayerProfile
     {
@@ -20,9 +27,6 @@ public class SummaryUIManager : MonoBehaviour
     [Header("🎮 遊戲進行中 UI (結算時會自動隱藏)")]
     public GameObject inGameTimerUI;      
 
-    // ==========================================
-    // 🌟 【新增】結算時要強制關閉的視窗清單
-    // ==========================================
     [Header("🛑 結算時強制關閉的視窗 (把小遊戲介面拖進來)")]
     public GameObject[] panelsToCloseOnSummary;
 
@@ -65,20 +69,26 @@ public class SummaryUIManager : MonoBehaviour
 
    void Update()
     {
-        // 🛠️ 測試按鍵
-        if (Input.GetKeyDown(KeyCode.Y)) 
+        // ==========================================
+        // 🌟 【修改】用開關包住測試按鍵邏輯
+        // ==========================================
+        if (enableTestKeys)
         {
-            // 拔掉塞分數的作弊碼，現在按 Y 只會單純叫出「真實成績」的勝利畫面
-            ShowSummary(true); 
-        }
-        if (Input.GetKeyDown(KeyCode.N)) 
-        {
-            if (GameManager.Instance != null)
+            // 🛠️ 測試按鍵
+            if (Input.GetKeyDown(KeyCode.Y)) 
             {
-                // 這個也可以順便拔掉，讓它顯示真實剩下的垃圾數量
-                // GameManager.Instance.remainingTrash = 20; 
+                // 拔掉塞分數的作弊碼，現在按 Y 只會單純叫出「真實成績」的勝利畫面
+                ShowSummary(true); 
             }
-            ShowSummary(false); 
+            if (Input.GetKeyDown(KeyCode.N)) 
+            {
+                if (GameManager.Instance != null)
+                {
+                    // 這個也可以順便拔掉，讓它顯示真實剩下的垃圾數量
+                    // GameManager.Instance.remainingTrash = 20; 
+                }
+                ShowSummary(false); 
+            }
         }
     }
 
@@ -92,9 +102,6 @@ public class SummaryUIManager : MonoBehaviour
     {
         if (inGameTimerUI != null) inGameTimerUI.SetActive(false);
 
-        // ==========================================
-        // 🌟 【新增】迴圈把清單裡的小遊戲視窗全部關掉！
-        // ==========================================
         if (panelsToCloseOnSummary != null)
         {
             foreach (GameObject panel in panelsToCloseOnSummary)
