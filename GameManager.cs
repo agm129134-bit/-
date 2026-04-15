@@ -41,8 +41,6 @@ public class GameManager : MonoBehaviour
     public int totalTasks = 12;      // UI顯示用的總數 (可留著給其他腳本參考)
     public int completedTasks = 0;   // 目前已經完成了幾個
 
-    // 🌟 【已刪除】原本的「垃圾分類任務設定 (requiredTrashBags 等)」已經不需要了！
-
     public bool isGameOver { get; private set; } = false;
 
     void Awake()
@@ -66,7 +64,7 @@ public class GameManager : MonoBehaviour
     }
 
     // ==========================================
-    // 🌟 【修改】現在垃圾分類成功，直接算作「收集到一般垃圾」！
+    // 🌟 現在垃圾分類成功，直接算作「收集到一般垃圾」！
     // 加入 playerId 參數 (預設為 0 代表 1P)，方便你把分數算給對應的玩家
     // ==========================================
     public void OnTrashBagSorted(int playerId = 0)
@@ -135,6 +133,14 @@ public class GameManager : MonoBehaviour
         {
             playerLives[playerId]--; 
             Debug.Log($"玩家 {playerId + 1} 被咬了！剩下 {playerLives[playerId]} 條命。");
+
+            // ==========================================
+            // 🌟 【新增】通知血量 UI 管家更新畫面！(把紅心變灰心)
+            // ==========================================
+            if (HealthUIManager.Instance != null)
+            {
+                HealthUIManager.Instance.UpdateHealth(playerId, playerLives[playerId]);
+            }
 
             if (playerLives[playerId] == 0)
             {
