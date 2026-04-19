@@ -52,8 +52,8 @@ public class FishSkillBarManager : MonoBehaviour
     public GameObject spitPrefab; 
     public Transform firePoint;   
     public bool reverseShootDirection = false; 
-    public float skill2Cooldown = 20f; // 恢復你原本設定的 20 秒冷卻
-    public AudioClip spitSound; // 吐口水音效
+    public float skill2Cooldown = 20f; 
+    public AudioClip spitSound; 
 
     private float skill2CurrentCD = 0f; 
     private int currentSelectedIndex = 0; 
@@ -64,10 +64,15 @@ public class FishSkillBarManager : MonoBehaviour
     [Header("⚡ 額外攻擊設定 (右下角『罰』)")]
     [Tooltip("🌟 罰的冷卻時間 (10 秒)")]
     public float punishCooldown = 10f;
+    
+    // 🌟 【新增】攻擊範圍設定！
+    [Tooltip("🌟 罰的攻擊範圍 (大魚跟玩家距離多近才能打到？)")]
+    public float punishRange = 2.5f; 
+
     [Tooltip("請把大魚『罰』的攻擊音效拖進來")]
     public AudioClip punishSound;
 
-    private float punishCurrentCD = 0f; // 獨立的「罰」冷卻計時器
+    private float punishCurrentCD = 0f; 
     private AudioSource audioSource; 
 
     void Awake()
@@ -174,7 +179,7 @@ public class FishSkillBarManager : MonoBehaviour
         }
         else if (slotIndex == 1 && skill2CurrentCD <= 0) 
         {
-            CastSpitSkill(); // 原汁原味的吐口水！
+            CastSpitSkill(); 
         }
     }
 
@@ -206,9 +211,6 @@ public class FishSkillBarManager : MonoBehaviour
         }
     }
 
-    // ==========================================
-    // 💦 實際發射口水彈的函數 (技能 2)
-    // ==========================================
     private void CastSpitSkill()
     {
         if (spitPrefab != null && firePoint != null)
@@ -236,33 +238,43 @@ public class FishSkillBarManager : MonoBehaviour
     }
 
     // ==========================================
-    // ⚡ 直接「罰！」扣血的專用接口 (右下角大按鈕專用)
+    // ⚡ 直接「罰！」扣血的專用接口 (加入距離判斷)
     // ==========================================
     public void ClickToPunish()
     {
-        // 檢查罰的冷卻時間到了沒
+        // 1. 檢查罰的冷卻時間到了沒
         if (punishCurrentCD <= 0)
         {
-            if (GameManager.Instance != null)
+            // 🌟 只要按了按鈕，就一定會發動招式 (進入冷卻、變換圖片、播放音效)
+            punishCurrentCD = punishCooldown;
+            if (buttonBaseImage != null && cooldownSprite != null) buttonBaseImage.sprite = cooldownSprite;
+            if (punishSound != null && audioSource != null) audioSource.PlayOneShot(punishSound);
+
+            // 🌟 2. 判斷人類有沒有在攻擊範圍內
+            if (humanTransform != null && fishTransform != null)
             {
-                int targetPlayerId = 0; // 預設攻擊 1P
-                GameManager.Instance.TakeDamage(targetPlayerId);
-
-                // 🌟 進入獨立的 10 秒冷卻時間
-                punishCurrentCD = punishCooldown;
-
-                // 把大按鈕的圖片換成灰色冷卻版
-                if (buttonBaseImage != null && cooldownSprite != null)
-                {
-                    buttonBaseImage.sprite = cooldownSprite;
-                }
-
-                if (punishSound != null && audioSource != null)
-                {
-                    audioSource.PlayOneShot(punishSound);
-                }
+                // 計算大魚與人類之間的直線距離
+                float distance = Vector2.Distance(fishTransform.position, humanTransform.position);
                 
-                Debug.Log("⚡ 大魚發動了『罰』！人類玩家直接扣除一滴血！");
+                // 如果距離小於等於我們設定的攻擊範圍
+                if (distance <= punishRange)
+                {
+                    if (GameManager.Instance != null)
+                    {
+                        int targetPlayerId = 0; // 預設攻擊 1P
+                        GameManager.Instance.TakeDamage(targetPlayerId);
+                        Debug.Log($"⚡ 大魚發動了『罰』！命中玩家，扣除一滴血！(目前距離: {distance})");
+                    }
+                }
+                else
+                {
+                    // 人類躲開了！揮空！
+                    Debug.Log($"💨 大魚發動了『罰』！但是揮空了...(目前距離 {distance}，超過了攻擊範圍 {punishRange})");
+                }
+            }
+            else
+            {
+                 Debug.LogWarning("⚠️ 找不到玩家或大魚的座標，無法判斷距離！請確認 Inspector 的 Transform 都有拉進去！");
             }
         }
         else
