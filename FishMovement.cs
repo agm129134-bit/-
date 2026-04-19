@@ -21,9 +21,12 @@ public class FishMovement : MonoBehaviour
     private SpriteRenderer spriteRenderer;
 
     // ==========================================
-    // 🌟 【新增】攻擊設定
+    // 🌟 攻擊設定 (已加入自訂開關)
     // ==========================================
     [Header("攻擊設定")]
+    [Tooltip("🌟 打勾：碰到玩家會自動咬人扣血 / 取消打勾：變成和平模式，撞到也不會扣血")]
+    public bool enableAutoAttack = true; 
+
     [Tooltip("咬人一次之後，要間隔幾秒才能再咬下一次？(防秒殺保護)")]
     public float damageCooldown = 2f; 
     private float lastDamageTime = -999f; // 記錄上次咬人的時間
@@ -66,7 +69,7 @@ public class FishMovement : MonoBehaviour
     }
 
     // 休息倒數的碼表
-    IEnumerator WaitAndPickNewPosition()
+    private IEnumerator WaitAndPickNewPosition()
     {
         isWaiting = true; 
         float waitTime = Random.Range(minWaitTime, maxWaitTime);
@@ -92,7 +95,7 @@ public class FishMovement : MonoBehaviour
     }
 
     // ==========================================
-    // 🌟 【新增】碰到玩家扣血邏輯
+    // 🌟 碰到玩家扣血邏輯
     // ==========================================
     
     // 如果你的大魚碰撞體勾選了 "Is Trigger"，會觸發這個
@@ -106,6 +109,9 @@ public class FishMovement : MonoBehaviour
     // 統一處理扣血的函數
     private void TryDealDamage(GameObject hitObject)
     {
+        // 🌟 【新增】如果沒有開啟自動攻擊，就直接退出，當作沒碰到！
+        if (!enableAutoAttack) return;
+
         // 檢查碰到的東西是不是玩家
         if (hitObject.CompareTag("Player"))
         {
