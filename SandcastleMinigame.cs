@@ -251,6 +251,8 @@ public class SandcastleMinigame : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.CompleteOneTask();
+            // 通知管家：第 1 個任務 (堆5個沙堡) 完成了！畫上刪除線！
+if (TaskListManager.Instance != null) TaskListManager.Instance.CompleteTask(1);
         }
     }
 

@@ -134,18 +134,23 @@ public class GameManager : MonoBehaviour
             playerLives[playerId]--; 
             Debug.Log($"玩家 {playerId + 1} 被咬了！剩下 {playerLives[playerId]} 條命。");
 
-            // ==========================================
-            // 🌟 【新增】通知血量 UI 管家更新畫面！(把紅心變灰心)
-            // ==========================================
+            // 通知血量 UI 管家更新畫面！(把紅心變灰心)
             if (HealthUIManager.Instance != null)
             {
                 HealthUIManager.Instance.UpdateHealth(playerId, playerLives[playerId]);
             }
 
+            // 🛑 如果被咬完這口，生命值歸零，代表死掉了
             if (playerLives[playerId] == 0)
             {
                 alivePlayerCount--; 
                 Debug.Log($"💀 玩家 {playerId + 1} 陣亡！目前剩餘存活人數：{alivePlayerCount}。目標任務數降為：{CurrentTargetTasks}");
+
+                // 🌟 【新增】完美連動任務清單管家：在死掉的玩家頭像上畫紅叉叉！
+                if (TaskListManager.Instance != null)
+                {
+                    TaskListManager.Instance.MarkPlayerDead(playerId);
+                }
             }
         }
 
