@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem; 
@@ -14,6 +15,20 @@ public class TaskListManager : MonoBehaviour
     public GameObject[] deadCrosses;
 
     // ==========================================
+    // 🎬 【新增】滑動動畫設定
+    // ==========================================
+    [Header("🎬 動畫設定")]
+    [Tooltip("開關動畫需要幾秒鐘？(預設 0.4秒)")]
+    public float slideDuration = 0.4f;
+    [Tooltip("關閉時要往左邊退到多遠？(數值越大退越遠，預設 500)")]
+    public float slideOffset = 500f;
+
+    private RectTransform uiRectTransform;
+    private Vector2 shownPosition;  // 打開時的座標 (也就是你在編輯器裡排版的原位)
+    private Vector2 hiddenPosition; // 關閉時的座標 (往左移)
+    private Coroutine currentSlideCoroutine;
+
+    // ==========================================
     // 🌟 針對 Legacy Text 升級的任務結構
     // ==========================================
     [System.Serializable]
@@ -22,7 +37,7 @@ public class TaskListManager : MonoBehaviour
         public string taskName;        // 備註用
         public Text taskText;          // 🌟 舊版 Text 組件
         public GameObject checkMark;   // 打勾圖片
-        public GameObject strikeLine;  // 🌟 【新增】刪除線圖片 (Image)
+        public GameObject strikeLine;  // 🌟 刪除線圖片 (Image)
     }
 
     [Header("📝 任務進度設定")]
@@ -50,17 +65,81 @@ public class TaskListManager : MonoBehaviour
             if (task.strikeLine != null) task.strikeLine.SetActive(false);
         }
 
-        isShowing = isOpenAtStart;
-        if (taskListUI != null) taskListUI.SetActive(isShowing);
+        // ==========================================
+        // 🌟 初始化動畫座標
+        // ==========================================
+        if (taskListUI != null)
+        {
+            // 抓取 UI 的排版元件
+            uiRectTransform = taskListUI.GetComponent<RectTransform>();
+            
+            // 紀錄現在的位子當作「打開時的位置」
+            shownPosition = uiRectTransform.anchoredPosition;
+            // 算好「關閉時的位置」 (把 X 座標減掉偏移量，讓它躲到左邊畫面外)
+            hiddenPosition = new Vector2(shownPosition.x - slideOffset, shownPosition.y);
+
+            isShowing = isOpenAtStart;
+            
+            // 根據預設狀態，直接把它擺到對應的位置
+            if (isShowing)
+            {
+                uiRectTransform.anchoredPosition = shownPosition;
+                taskListUI.SetActive(true);
+            }
+            else
+            {
+                uiRectTransform.anchoredPosition = hiddenPosition;
+                taskListUI.SetActive(false);
+            }
+        }
     }
 
     void Update()
     {
+        // 偵測 TAB 鍵按下
         if (Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
         {
             isShowing = !isShowing;
-            taskListUI.SetActive(isShowing);
+
+            // 如果目前正在播動畫，先把它停掉，免得打開一半又按關閉會錯亂
+            if (currentSlideCoroutine != null) StopCoroutine(currentSlideCoroutine);
+            
+            // 播放新的滑動動畫
+            currentSlideCoroutine = StartCoroutine(SlideUI(isShowing));
         }
+    }
+
+    // ==========================================
+    // 🎬 控制 UI 滑動的魔法協程
+    // ==========================================
+    private IEnumerator SlideUI(bool show)
+    {
+        // 如果是要打開，先讓物件顯示出來，才能看到它滑進來
+        if (show) taskListUI.SetActive(true);
+
+        Vector2 startPos = uiRectTransform.anchoredPosition;
+        Vector2 targetPos = show ? shownPosition : hiddenPosition;
+        float time = 0;
+
+        while (time < slideDuration)
+        {
+            time += Time.deltaTime;
+            
+            // 讓進度在 0 ~ 1 之間
+            float t = time / slideDuration;
+            
+            // 加上一點「減速(Ease-Out)」效果，讓滑動看起來更自然，不會死死的
+            t = t * (2f - t); 
+
+            uiRectTransform.anchoredPosition = Vector2.Lerp(startPos, targetPos, t);
+            yield return null;
+        }
+
+        // 確保最後精準停在目標位置
+        uiRectTransform.anchoredPosition = targetPos;
+
+        // 如果是要關閉，等它徹底滑出畫面後，再把物件關掉省效能
+        if (!show) taskListUI.SetActive(false);
     }
 
     // ==========================================
@@ -70,19 +149,16 @@ public class TaskListManager : MonoBehaviour
     {
         if (taskIndex >= 0 && taskIndex < tasks.Length)
         {
-            // 1. 顯示打勾圖片
             if (tasks[taskIndex].checkMark != null)
                 tasks[taskIndex].checkMark.SetActive(true);
 
-            // 2. 🌟 顯示刪除線實體圖片
             if (tasks[taskIndex].strikeLine != null)
                 tasks[taskIndex].strikeLine.SetActive(true);
 
-            // 3. 🌟 讓文字顏色變淡 (透明度降為 50%)，視覺效果更好！
             if (tasks[taskIndex].taskText != null)
             {
                 Color fadedColor = tasks[taskIndex].taskText.color;
-                fadedColor.a = 0.5f; // a 代表 Alpha (透明度)，範圍是 0~1
+                fadedColor.a = 0.5f; 
                 tasks[taskIndex].taskText.color = fadedColor;
             }
             

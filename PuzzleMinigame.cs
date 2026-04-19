@@ -158,6 +158,7 @@ public class PuzzleMinigame : MonoBehaviour
         isPlaying = false;
         PlaySound(gameClearSound);
 
+        // 🌟 這裡恢復成最純粹的給道具邏輯，沒有任務清單的打擾了！
         if (itemManager != null && currentRewardCount < maxRewards && rewardPhoto != null)
         {
             bool isSuccess = itemManager.AddItem(rewardPhoto);
@@ -165,16 +166,6 @@ public class PuzzleMinigame : MonoBehaviour
             {
                 currentRewardCount++; 
                 Debug.Log($"拼圖完成！成功獲得相片道具！(目前已領取 {currentRewardCount} / {maxRewards} 次)");
-                
-                // ==========================================
-                // 🌟 【新增】任務清單連動！
-                // ==========================================
-                // 假設「拆紙箱/修照片」是第 0 個任務 (Element 0)
-                if (TaskListManager.Instance != null)
-                {
-                    TaskListManager.Instance.CompleteTask(0);
-                    Debug.Log("📝 已通知任務管家畫上刪除線！");
-                }
             }
         }
         else if (currentRewardCount >= maxRewards)
